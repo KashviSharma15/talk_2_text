@@ -12,7 +12,7 @@ coqui-stt==1.4.0  # You can update to the latest tested version
 vosk
 
 # Whisper (via OpenAI)
-openai-whisper  # OR use faster-whisper if speed is a concern
+openai-whisper
 
 # If using Whisper via PyTorch directly:
 torch  # Required for OpenAI Whisper and Whisper Tiny
@@ -23,8 +23,7 @@ onnxruntime  # CPU version
 
 # Interface
 streamlit
-# OR
-gradio
+
 
 # Optional: For real-time mic recording
 sounddevice
