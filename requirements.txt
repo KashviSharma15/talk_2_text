@@ -1,0 +1,30 @@
+# Core libraries
+numpy
+psutil
+soundfile
+scipy
+evaluate
+
+# Coqui STT
+coqui-stt==1.4.0  # You can update to the latest tested version
+
+# Vosk
+vosk
+
+# Whisper (via OpenAI)
+openai-whisper  # OR use faster-whisper if speed is a concern
+
+# If using Whisper via PyTorch directly:
+torch  # Required for OpenAI Whisper and Whisper Tiny
+
+# For ONNX Runtime (if using Whisper ONNX or for deployment)
+onnxruntime  # CPU version
+# onnxruntime-gpu  # Uncomment if using GPU version
+
+# Interface
+streamlit
+# OR
+gradio
+
+# Optional: For real-time mic recording
+sounddevice
