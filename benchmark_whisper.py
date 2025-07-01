@@ -3,7 +3,7 @@ import torch
 import whisper
 import psutil
 import os
-from jiwer import wer, mer, cer, compute_measures
+from jiwer import wer, mer, cer
 
 # --- CONFIGURATION ---
 MODELS = ["tiny", "base", "small", "medium", "large", "large-v1", "large-v2", "large-v3"]
