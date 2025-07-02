@@ -1,21 +1,17 @@
-# streamlit_frontend.py
 import streamlit as st
 import requests
 from io import BytesIO
 
-# 🚀 Title and style
 st.set_page_config(page_title="Talk2Text", layout="centered")
 st.markdown("<h1 style='text-align: center; color: #4B8BBE;'>🎙 Talk2Text - Audio to Text</h1>", unsafe_allow_html=True)
 
 st.markdown("###")
 
-# 📁 File uploader
+
 uploaded_file = st.file_uploader("Upload an audio file (WAV, MP3, etc.)", type=["wav", "mp3", "m4a"])
 
-# 🌐 API URL
-API_URL = "http://localhost:8000/transcribe/"  # Or your Ngrok URL if deployed
+API_URL = "http://localhost:8000/transcribe/"  
 
-# ▶ Button to trigger transcription
 if uploaded_file is not None:
     if st.button("Transcribe"):
         st.info("Transcribing, please wait...")
@@ -35,5 +31,4 @@ if uploaded_file is not None:
 else:
     st.markdown("⬆ Upload an audio file to get started.")
 
-# ✨ Footer
 st.markdown("<hr><center>Made with FastAPI, Whisper & Streamlit</center>", unsafe_allow_html=True)
