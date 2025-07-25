@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register</title>
+    <style>
+        html {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .register-container {
+            width: 50%;
+            margin: 8% auto;
+            padding: 40px;
+            background-color: rgba(255, 249, 219, 0.95); /* pastel yellow overlay */
+            border-radius: 16px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        h2 {
+            text-align: center;
+            color: #6B5B95; /* pastel lavender-gray */
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        label {
+            font-weight: 600;
+            color: #555;
+            font-size: 15px;
+        }
+
+        input {
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #d6d6d6;
+            border-radius: 8px;
+            background-color: #FFF;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #BFA2DB; /* lavender border */
+            box-shadow: 0 0 6px #E6D6F3;
+        }
+
+        small {
+            color: #888;
+            font-size: 13px;
+            margin-top: -10px;
+        }
+
+        button {
+            padding: 12px;
+            font-size: 16px;
+            background-color: #BFA2DB; /* pastel lavender */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #D7BCE8; /* lighter lavender */
+        }
+
+        p {
+            text-align: center;
+            font-size: 15px;
+            color: #444;
+        }
+
+        a {
+            color: #7F90C2; /* soft blue-lavender */
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        a:hover {
+            text-decoration: underline;
+            color: #6B5B95;
+        }
+
+        @media screen and (max-width: 768px) {
+            .register-container {
+                width: 90%;
+                padding: 25px;
+            }
+
+            h2 {
+                font-size: 24px;
+            }
+
+            input, button {
+                font-size: 14px;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="register-container">
+        <h2>Register</h2>
+        <form method="POST" action="{{ url_for('register') }}">
+            <label>Full Name:</label>
+            <input type="text" name="full_name" required>
+            <label>Email:</label>
+            <input type="text" name="email" placeholder="Eg : abc123@gmail.com" required>
+            <label>Password:</label>
+            <input type="password" name="password" required>
+            <small>Use strong passwords</small>
+            <button type="submit">Register</button>
+        </form>
+        <p>Already have an account? <a href="{{ url_for('login') }}">Login</a></p>
+    </div>
+</body>
+</html>

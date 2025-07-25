@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Doctor Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        body {
+            background: #fefcfb;
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .dashboard-container {
+            padding: 2rem;
+        }
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .overview-card {
+            background: #e4e7f3;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+        .overview-card h2 {
+            font-size: 2rem;
+            margin: 0;
+        }
+        .overview-card p {
+            font-size: 1rem;
+            color: #555;
+        }
+        .patients-section {
+            background: #f3f2f7;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .patients-section h3 {
+            margin-top: 0;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .patient-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .patient-card {
+            background: #fff;
+            padding: 1rem;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .patient-card span {
+            font-size: 1rem;
+            color: #333;
+        }
+        .patient-card a {
+            text-decoration: none;
+            color: #467fcf;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="dashboard-container">
+        <div class="overview-grid">
+            <div class="overview-card">
+                <h2>{{ active_patients }}</h2>
+                <p>Active Patients</p>
+            </div>
+            <div class="overview-card">
+                <h2>{{ today_sessions }}</h2>
+                <p>Today's Sessions</p>
+            </div>
+            <div class="overview-card">
+                <h2>{{ alerts_count }}</h2>
+                <p>Alerts</p>
+            </div>
+        </div>
+
+        <div class="patients-section">
+            <h3>Patient List</h3>
+            <div class="patient-list">
+                {% for patient in patients %}
+                <div class="patient-card">
+                    <span>{{ patient.name }}</span>
+                    <a href="{{ url_for('view_profiles', patient_id=patient.id) }}">View</a>
+                </div>
+                {% else %}
+                <p>No patients found.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

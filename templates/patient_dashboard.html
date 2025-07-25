@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Your Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        body {
+            margin: 0;
+            padding: 2rem;
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #fefcfb;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            color: #222;
+        }
+
+        .dashboard-cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            flex: 1;
+            min-width: 220px;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        }
+
+        .card h2 {
+            margin: 0;
+            font-size: 2rem;
+        }
+
+        .card-label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+            display: block;
+        }
+
+        .card-blue {
+            background-color: #e9f0ff;
+            color: #174ea6;
+        }
+
+        .card-green {
+            background-color: #e7f6ed;
+            color: #1b5e20;
+        }
+
+        .card-yellow {
+            background-color: #fffbe6;
+            color: #6c4400;
+        }
+
+        .assignments {
+            background-color: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        }
+
+        .assignments h3 {
+            margin-top: 0;
+            font-size: 1.25rem;
+            color: #333;
+        }
+
+        .assignments ul {
+            margin: 0.5rem 0 0 1rem;
+            padding: 0;
+        }
+
+        .assignments li {
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+            color: #444;
+        }
+
+        .emoji {
+            margin-right: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+
+    {% include 'navbar.html' %}
+
+    <h1>Your Dashboard</h1>
+
+    <div class="dashboard-cards">
+        <div class="card card-blue">
+            <span class="card-label">Daily Goal</span>
+            <h2>{{ completed_sentences }}/{{ total_sentences }} Sentences</h2>
+        </div>
+        <div class="card card-green">
+            <span class="card-label">Practice Streak</span>
+            <h2>🔥 {{ streak_days }} Days</h2>
+        </div>
+        <div class="card card-yellow">
+            <span class="card-label">New Feedback</span>
+            <h2>{{ feedback_count }}</h2>
+        </div>
+    </div>
+
+    <div class="assignments">
+        <h3>Assigned Exercises</h3>
+        <ul>
+            {% for task in assigned_exercises %}
+                <li>{{ task }}</li>
+            {% else %}
+                <li>No assigned exercises.</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+</body>
+</html>

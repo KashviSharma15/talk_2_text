@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login</title>
+    <style>
+        html {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-size: cover;
+            background-position: center;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .login-container {
+            width: 50%;
+            margin: 8% auto;
+            padding: 40px;
+            background-color: rgba(255, 249, 219, 0.95); /* pastel yellowish overlay */
+            border-radius: 16px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        h2 {
+            text-align: center;
+            color: #6B5B95; /* pastel lavender-gray */
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        label {
+            font-size: 16px;
+            color: #555;
+        }
+
+        input {
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #d6d6d6;
+            border-radius: 8px;
+            background-color: #FFF; /* keeps it clean */
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #BFA2DB; /* pastel lavender border */
+            box-shadow: 0 0 6px #E6D6F3;
+        }
+
+        button {
+            padding: 12px;
+            font-size: 16px;
+            background-color: #BFA2DB; /* pastel lavender */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #D7BCE8; /* lighter lavender */
+        }
+
+        p {
+            text-align: center;
+            font-size: 15px;
+            color: #444;
+        }
+
+        a {
+            color: #7F90C2; /* soft blue-lavender */
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        a:hover {
+            text-decoration: underline;
+            color: #6B5B95;
+        }
+
+        @media screen and (max-width: 768px) {
+            .login-container {
+                width: 90%;
+                padding: 25px;
+            }
+
+            h2 {
+                font-size: 24px;
+            }
+
+            input, button {
+                font-size: 14px;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h2>Login</h2>
+        <form method="POST" action="{{ url_for('login') }}">
+            <label>Email:</label>
+            <input type="text" placeholder="Eg : abc123@gmail.com" name="email" required>
+            <label>Password:</label>
+            <input type="password" name="password" required>
+            <button type="submit">Login</button>
+        </form>
+        <p>Don't have an account? <a href="{{ url_for('register') }}">Register</a></p>
+    </div>
+</body>
+</html>

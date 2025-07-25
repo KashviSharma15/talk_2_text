@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Talk2Text</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #fdfcfa;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #ffffff;
+            padding: 15px 30px;
+            border-bottom: 2px solid #ececec;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.04);
+        }
+
+        .navbar-left {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+        }
+
+        .logo {
+            font-weight: bold;
+            font-size: 1.6rem;
+            color: #444;
+        }
+
+        .navbar-links a {
+            text-decoration: none;
+            color: #4a4a4a;
+            margin-right: 15px;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .navbar-links a:hover {
+            color: #3b82f6;
+        }
+
+        .logout-btn {
+            background-color: #ff6b6b;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background-color: #e65050;
+        }
+
+        @media screen and (max-width: 768px) {
+            .navbar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .navbar-left {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .navbar-links a {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <div class="navbar-left">
+            <div class="logo">🗣️ Talk2Text</div>
+            <div class="navbar-links">
+                {% if session.get('is_doctor') %}
+                    <a href="{{ url_for('doctor_dashboard') }}">🏥 Doctor Dashboard</a>
+                    <a href="{{ url_for('view_profiles') }}">📋 View Patient Profiles</a>
+                    <a href="{{ url_for('review_results') }}">🧾 Review Speech Results</a>
+                    <a href="{{ url_for('progress_analysis') }}">📈 Progress Analysis</a>
+                {% else %}
+                    <a href="{{ url_for('start_game') }}">🎮 Start Speech Game</a>
+                    <a href="{{ url_for('view_progress') }}">📊 View My Progress</a>
+                    <a href="{{ url_for('achievements') }}">🏆 Achievements</a>
+                {% endif %}
+            </div>
+        </div>
+        <div>
+            <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+        </div>
+    </div>
+
+    {% block content %}
+    {% endblock %}
+
+</body>
+</html>
