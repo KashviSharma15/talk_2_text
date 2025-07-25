@@ -4,7 +4,7 @@ import psutil
 import json
 import os
 from vosk import Model, KaldiRecognizer
-from jiwer import wer, mer, cer
+from jiwer import wer, mer, cer, compute_measures
 
 # --- CONFIGURATION ---
 MODEL_PATH = "models/vosk/vosk-model-small-en-us-0.15"

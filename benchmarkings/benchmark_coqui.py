@@ -4,7 +4,7 @@ import os
 import wave
 import numpy as np
 from stt import Model
-from jiwer import wer, mer, cer
+from jiwer import wer, mer, cer, compute_measures
 
 # --- CONFIGURATION ---
 MODEL_PATH = "models/coqui/model.tflite"
@@ -45,4 +45,4 @@ print("\n--- Accuracy Metrics ---")
 print("WER:", round(wer(REFERENCE_TEXT, text), 3))
 print("MER:", round(mer(REFERENCE_TEXT, text), 3))
 print("CER:", round(cer(REFERENCE_TEXT, text), 3))
-gi
+

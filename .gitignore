@@ -1,0 +1,36 @@
+# Ignore Python cache and compiled files
+__pycache__/
+*.py[cod]
+*.so
+
+# Ignore virtual environments
+venv/
+ENV/
+env/
+
+# Ignore model files (usually large)
+models/
+*.pt
+*.onnx
+
+# Ignore audio sample files
+samples/
+*.wav
+*.mp3
+
+# Ignore benchmark output or logs
+*.log
+*.csv
+
+# VS Code settings (optional, if not needed in repo)
+.vscode/
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore Jupyter/IPython stuff if used
+.ipynb_checkpoints/
+
+# Ignore env files if you use them
+.env
