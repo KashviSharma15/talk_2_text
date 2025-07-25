@@ -12,34 +12,35 @@ import {
     showDoctorDashboardView,
     renderPatientList,
     renderDoctorPatientChart,
-    renderDoctorPatientFeedbackList,
-    renderDoctorAssignedExercisesHistory,
-    updateDoctorLatestSessionDetails,
-    displayAssignmentMessage,
-    displayExportReportMessage,
-    displayCustomizeRubricMessage,
-    showRubricModal,
-    hideRubricModal,
+    renderDoctorWordAccuracyChart, // NEW: Import for doctor's word accuracy chart
+    renderDoctorPatientFeedbackList, // Import for feedback list rendering for doctor's view
+    renderDoctorAssignedExercisesHistory, // New: Import for rendering assigned exercises history
+    updateDoctorLatestSessionDetails, // Import for updating latest session details
+    displayAssignmentMessage, // Import for displaying assignment messages
+    displayExportReportMessage, // Import for export report messages
+    displayCustomizeRubricMessage, // Import for customize rubric messages
+    showRubricModal, // Import for showing the rubric modal
+    hideRubricModal, // Import for hiding the rubric modal
     updateRangeValueDisplay,
-    updateDoctorDashboardStats // NEW: Import for updating dashboard stats
+    updateDoctorDashboardStats // Import for updating dashboard stats
 } from './uiManager.js';
 import {
     fetchPatientsForDoctor,
-    listenToPronunciationHistory,
+    listenToPronunciationHistory, // Using listenToPronunciationHistory for patient history
     savePatientFeedback,
     listenToPatientFeedback,
     getUserId,
     saveAssignedExercise,
-    listenToAssignedExercises,
-    saveRubricSettings,
-    getRubricSettings,
-    fetchActivePatientsCount, // NEW: Import for active patients count
-    fetchTodaysSessionsCount // NEW: Import for today's sessions count
+    listenToAssignedExercises, // NEW: Import for listening to assigned exercises for doctor's view
+    saveRubricSettings, // Import for saving rubric settings
+    getRubricSettings, // Import for getting rubric settings
+    fetchActivePatientsCount, // Import for active patients count
+    fetchTodaysSessionsCount // Import for today's sessions count
 } from './firebaseService.js';
 
 let currentPatientHistoryUnsubscribe = null; // To manage the Firestore listener for the currently viewed patient's history
 let currentPatientFeedbackUnsubscribe = null; // To manage the Firestore listener for the currently viewed patient's feedback
-let currentPatientAssignedExercisesUnsubscribe = null; // To manage assigned exercises listener for doctor's view
+let currentPatientAssignedExercisesUnsubscribe = null; // NEW: To manage assigned exercises listener for doctor's view
 
 let currentViewedPatientId = null; // Store the ID of the patient currently being viewed by the doctor
 let currentPatientHistoryData = []; // Store the latest history data for the current patient
@@ -104,7 +105,7 @@ function handlePatientViewClick(patientId, patientName) {
         currentPatientFeedbackUnsubscribe();
         console.log("Unsubscribed from previous patient feedback listener.");
     }
-    // Unsubscribe from previous patient's assigned exercises listener if active
+    // NEW: Unsubscribe from previous patient's assigned exercises listener if active
     if (currentPatientAssignedExercisesUnsubscribe) {
         currentPatientAssignedExercisesUnsubscribe();
         console.log("Unsubscribed from previous patient assigned exercises listener.");
@@ -116,6 +117,7 @@ function handlePatientViewClick(patientId, patientName) {
         currentPatientHistoryData = historyData; // Store the history data
         // Render the chart for the specific patient
         renderDoctorPatientChart(historyData);
+        renderDoctorWordAccuracyChart(historyData); // NEW: Render word accuracy chart
 
         // Update latest session details - historyData is already sorted by desc timestamp
         const latestSession = historyData.length > 0 ? historyData[0] : null;
@@ -129,7 +131,7 @@ function handlePatientViewClick(patientId, patientName) {
         renderDoctorPatientFeedbackList(feedbackData); // Render feedback in the doctor's view
     });
 
-    // Set up a real-time listener for the selected patient's assigned exercises history
+    // NEW: Set up a real-time listener for the selected patient's assigned exercises history
     currentPatientAssignedExercisesUnsubscribe = listenToAssignedExercises(patientId, (exercisesData) => {
         console.log(`[DoctorManager Debug] Received assigned exercises data for patient ${patientId}:`, exercisesData);
         renderDoctorAssignedExercisesHistory(exercisesData); // Render assigned exercises history in the doctor's view
@@ -234,13 +236,12 @@ async function handleExportReport() {
         doc.text(`Patient ID: ${currentViewedPatientId}`, 10, yOffset);
         yOffset += 15;
 
-        // --- Chart/Graph Inclusion ---
-        const chartCanvas = DOMElements.doctorPatientChartCanvas;
-        if (chartCanvas) {
-            // Ensure the chart is rendered before attempting to convert it to an image
-            const imgData = chartCanvas.toDataURL('image/png');
+        // --- Progress Chart Inclusion ---
+        const progressChartCanvas = DOMElements.doctorPatientChartCanvas;
+        if (progressChartCanvas) {
+            const imgData = progressChartCanvas.toDataURL('image/png');
             const imgWidth = 180; // Standard width for A4 page, adjust as needed
-            const imgHeight = (chartCanvas.height * imgWidth) / chartCanvas.width; // Maintain aspect ratio
+            const imgHeight = (progressChartCanvas.height * imgWidth) / progressChartCanvas.width; // Maintain aspect ratio
 
             // Check if adding the chart will exceed page height, add new page if necessary
             if (yOffset + imgHeight + 10 > doc.internal.pageSize.height) {
@@ -249,6 +250,21 @@ async function handleExportReport() {
             }
             doc.addImage(imgData, 'PNG', 10, yOffset, imgWidth, imgHeight);
             yOffset += imgHeight + 10; // Move yOffset down after adding the image
+        }
+
+        // --- Most Challenging Words Chart Inclusion ---
+        const wordAccuracyChartCanvas = DOMElements.doctorWordAccuracyChart;
+        if (wordAccuracyChartCanvas) {
+            const imgDataWordAccuracy = wordAccuracyChartCanvas.toDataURL('image/png');
+            const imgWidthWordAccuracy = 180;
+            const imgHeightWordAccuracy = (wordAccuracyChartCanvas.height * imgWidthWordAccuracy) / wordAccuracyChartCanvas.width;
+
+            if (yOffset + imgHeightWordAccuracy + 10 > doc.internal.pageSize.height) {
+                doc.addPage();
+                yOffset = 10;
+            }
+            doc.addImage(imgDataWordAccuracy, 'PNG', 10, yOffset, imgWidthWordAccuracy, imgHeightWordAccuracy);
+            yOffset += imgHeightWordAccuracy + 10;
         }
         // ------------------------------------------
 
@@ -497,7 +513,7 @@ function handleBackToPatientListClick() {
         currentPatientFeedbackUnsubscribe = null;
         console.log("Unsubscribed from current patient feedback listener when returning to dashboard.");
     }
-    // Unsubscribe from current patient's assigned exercises listener
+    // NEW: Unsubscribe from current patient's assigned exercises listener
     if (currentPatientAssignedExercisesUnsubscribe) {
         currentPatientAssignedExercisesUnsubscribe();
         currentPatientAssignedExercisesUnsubscribe = null;

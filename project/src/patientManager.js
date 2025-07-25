@@ -14,6 +14,7 @@ import {
     displaySentenceResults,
     showPatientView,
     renderProgressChart,
+    renderDailySessionsChart, // NEW: Import for daily sessions chart
     updateHistoryList,
     updateUserIdDisplay,
     renderPatientFeedbackList, // Correct import for patient's feedback list
@@ -268,6 +269,7 @@ function loadAndDisplayHistory() {
         console.log("Received updated history data:", historyData);
         updateHistoryList(historyData);
         renderProgressChart(historyData); // historyData is already sorted desc by timestamp
+        renderDailySessionsChart(historyData); // NEW: Render daily sessions chart
     });
 }
 
@@ -351,7 +353,7 @@ function attachPracticeListeners() {
     // Record button listener
     if (DOMElements.recordButton) {
         DOMElements.recordButton.removeEventListener('click', handleRecordClick); // Remove previous to prevent duplicates
-        DOMElements.recordButton.addEventListener('click', handleRecordClick);
+        DOMElements.recordButton.addEventListener('click', handleRecordClick); // Fixed typo: DOMEElements -> DOMElements
     }
 
     // Stop button listener

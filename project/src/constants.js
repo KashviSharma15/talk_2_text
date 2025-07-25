@@ -1,24 +1,38 @@
 // src/constants.js
 
-// Replace with your actual Firebase configuration
-// You can find this in your Firebase project settings -> Project settings -> General -> Your apps -> Firebase SDK snippet (Config)
-export const FIREBASE_CONFIG = {
-        apiKey: "AIzaSyDwjxv_G5v5fcssb_Hkegt09RzCuuukrOo",
+/**
+ * @fileoverview Defines global constants used throughout the application.
+ */
+
+/**
+ * Configuration for Firebase.
+ * IMPORTANT: This now correctly checks for the global __firebase_config
+ * provided by the Canvas environment. If running outside Canvas, you'll need
+ * to manually provide valid Firebase credentials here.
+ * @type {object}
+ */
+export const FIREBASE_CONFIG = typeof __firebase_config !== 'undefined' ?
+    JSON.parse(__firebase_config) :
+    {
+        apiKey: "AIzaSyDwjxv_G5v5fcssb_Hkegt09RzCuuukrOo", // REPLACE THIS WITH YOUR ACTUAL API KEY IF NOT IN CANVAS
         authDomain: "speechtherapyapp-f524f.firebaseapp.com",
         projectId: "speechtherapyapp-f524f",
         storageBucket: "speechtherapyapp-f524f.firebasestorage.app",
         messagingSenderId: "61000903231",
         appId: "1:61000903231:web:eac4f8841f89db73e4268a"
-};
+    };
 
-// This APP_ID is used for Firestore collection paths (e.g., artifacts/{APP_ID}/...)
-// It helps to namespace your data if you have multiple applications using the same Firestore project.
-// You can make this anything unique to your application, e.g., 'speech-therapy-app-v1'
-export const APP_ID = "speech-therapy-app";
+/**
+ * The unique application ID provided by the Canvas environment.
+ * @type {string}
+ */
+export const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'speech-therapy-app';
 
-// If you are using custom authentication tokens (e.g., from a backend)
-// For anonymous sign-in, leave this as null or an empty string.
-export const INITIAL_AUTH_TOKEN = null;
+/**
+ * The initial custom authentication token provided by the Canvas environment.
+ * @type {string|undefined}
+ */
+export const INITIAL_AUTH_TOKEN = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
 // Default sentences for the patient to practice if no specific exercises are assigned
 export const SENTENCES_TO_PRACTICE = [

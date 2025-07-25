@@ -13,7 +13,9 @@ export const DOMElements = {};
 
 // Chart instances to manage their lifecycle
 let progressChartInstance = null;
+let dailySessionsChartInstance = null; // NEW: Chart instance for daily sessions
 let doctorPatientChartInstance = null;
+let doctorWordAccuracyChartInstance = null; // NEW: Chart instance for doctor's word accuracy
 
 /**
  * Initializes all DOM elements by getting their references from the document.
@@ -47,7 +49,7 @@ export function initializeDOMElements() {
     DOMElements.practiceWordsContainer = document.getElementById('practiceWordsContainer');
     DOMElements.nextSentenceBtn = document.getElementById('nextSentenceBtn');
     DOMElements.startNewSessionBtn = document.getElementById('startNewSessionBtn');
-    DOMElements.userIdDisplay = document.getElementById('userIdDisplay');
+    DOMElements.userIdDisplay = document.getElementById('userIdDisplay'); // Reverted to userIdDisplay
     DOMElements.historyList = document.getElementById('historyList');
     DOMElements.waveformCanvas = document.getElementById('waveform');
     DOMElements.congratulations = document.getElementById('congratulations');
@@ -56,8 +58,9 @@ export function initializeDOMElements() {
     DOMElements.patientFeedbackList = document.getElementById('patientFeedbackList');
     DOMElements.patientAssignedExercises = document.getElementById('patientAssignedExercises');
     DOMElements.progressChart = document.getElementById('progressChart');
+    DOMElements.dailySessionsChart = document.getElementById('dailySessionsChart'); // NEW: Daily Sessions Chart
 
-    // Patient Dashboard Overview Stats (NEW)
+    // Patient Dashboard Overview Stats
     DOMElements.dailyGoalSentences = document.getElementById('dailyGoalSentences');
     DOMElements.practiceStreakDays = document.getElementById('practiceStreakDays');
     DOMElements.newFeedbackCount = document.getElementById('newFeedbackCount');
@@ -70,11 +73,12 @@ export function initializeDOMElements() {
     DOMElements.backToPatientListBtn = document.getElementById('backToPatientListBtn');
     DOMElements.patientDetailsName = document.getElementById('patientDetailsName');
     DOMElements.doctorPatientChartCanvas = document.getElementById('doctorPatientChart');
+    DOMElements.doctorWordAccuracyChart = document.getElementById('doctorWordAccuracyChart'); // NEW: Doctor's Word Accuracy Chart
     DOMElements.doctorFeedbackTextarea = document.getElementById('doctorFeedbackTextarea');
     DOMElements.sendFeedbackBtn = document.getElementById('sendFeedbackBtn');
     DOMElements.doctorPatientFeedbackHistory = document.getElementById('doctorPatientFeedbackHistory');
-    DOMElements.patientSearchInput = document.getElementById('patientSearchInput'); // Added for doctor's search input
-    DOMElements.doctorAssignedExercisesHistory = document.getElementById('doctorAssignedExercisesHistory'); // Added for doctor's assigned exercises history
+    DOMElements.patientSearchInput = document.getElementById('patientSearchInput');
+    DOMElements.doctorAssignedExercisesHistory = document.getElementById('doctorAssignedExercisesHistory');
 
     // Doctor's dashboard overview stats
     DOMElements.activePatientsCount = document.getElementById('activePatientsCount');
@@ -411,6 +415,81 @@ export function renderProgressChart(data) {
 }
 
 /**
+ * Renders or updates the patient's daily practice sessions chart.
+ * @param {Array<Object>} data - An array of pronunciation history data.
+ */
+export function renderDailySessionsChart(data) {
+    console.log("renderDailySessionsChart called with data:", data);
+    let chartCanvas = DOMElements.dailySessionsChart;
+    if (!chartCanvas) {
+        chartCanvas = document.getElementById('dailySessionsChart');
+        if (chartCanvas) {
+            DOMElements.dailySessionsChart = chartCanvas;
+        } else {
+            console.error("Daily sessions chart canvas not found.");
+            return;
+        }
+    }
+    const ctx = chartCanvas.getContext('2d');
+    if (dailySessionsChartInstance) {
+        dailySessionsChartInstance.destroy(); // Destroy previous chart instance
+    }
+
+    // Aggregate data to count sessions per day
+    const dailySessionCounts = {}; // { 'YYYY-MM-DD': count }
+    data.forEach(record => {
+        if (record.timestamp) {
+            const date = new Date(record.timestamp.toDate()).toLocaleDateString('en-CA');
+            dailySessionCounts[date] = (dailySessionCounts[date] || 0) + 1;
+        }
+    });
+
+    const sortedDates = Object.keys(dailySessionCounts).sort();
+    const labels = sortedDates;
+    const counts = sortedDates.map(date => dailySessionCounts[date]);
+
+    dailySessionsChartInstance = new Chart(ctx, {
+        type: 'bar', // Bar chart for counts
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Sessions Completed',
+                data: counts,
+                backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    precision: 0, // Ensure integer ticks for counts
+                    title: {
+                        display: true,
+                        text: 'Number of Sessions'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    },
+                    ticks: {
+                        autoSkip: false,
+                        maxRotation: 90,
+                        minRotation: 45
+                    }
+                }
+            },
+            responsive: true,
+            maintainAspectRatio: true
+        }
+    });
+}
+
+
+/**
  * Renders or updates the doctor's view of a patient's progress chart.
  * @param {Array<Object>} data - An array of pronunciation history data for the patient.
  */
@@ -481,6 +560,117 @@ export function renderDoctorPatientChart(data) { // Exported this function
             },
             responsive: true,
             maintainAspectRatio: true // Explicitly set to true
+        }
+    });
+}
+
+/**
+ * Renders or updates the doctor's view of a patient's most challenging words.
+ * @param {Array<Object>} data - An array of pronunciation history data for the patient.
+ */
+export function renderDoctorWordAccuracyChart(data) {
+    console.log("renderDoctorWordAccuracyChart called with data:", data);
+    let chartCanvas = DOMElements.doctorWordAccuracyChart;
+    if (!chartCanvas) {
+        chartCanvas = document.getElementById('doctorWordAccuracyChart');
+        if (chartCanvas) {
+            DOMElements.doctorWordAccuracyChart = chartCanvas;
+        } else {
+            console.error("Doctor word accuracy chart canvas not found.");
+            return;
+        }
+    }
+    const ctx = chartCanvas.getContext('2d');
+    if (doctorWordAccuracyChartInstance) {
+        doctorWordAccuracyChartInstance.destroy(); // Destroy previous chart instance
+    }
+
+    // Aggregate word-level errors
+    const wordErrors = {}; // { 'word': { totalAttempts: 0, mispronunciations: 0 } }
+    data.forEach(session => {
+        if (session.wordDetails && Array.isArray(session.wordDetails)) {
+            session.wordDetails.forEach(wordDetail => {
+                // Defensive check: Ensure wordDetail and 'word' property exist
+                if (wordDetail && wordDetail.word) { // CHANGED: Access wordDetail.word instead of wordDetail.originalWord
+                    const word = wordDetail.word.toLowerCase(); // Use 'word' property for consistent key
+                    if (!wordErrors[word]) {
+                        wordErrors[word] = { totalAttempts: 0, mispronunciations: 0 };
+                    }
+                    // Only count target words towards total attempts and specific error types
+                    // Insertions are not "attempts" of a target word, they are extra words.
+                    // Assuming 'insertion' error type means it wasn't a target word.
+                    if (wordDetail.error !== 'insertion') {
+                        wordErrors[word].totalAttempts++;
+                        if (wordDetail.error === 'mispronunciation' || wordDetail.error === 'omission' || wordDetail.error === 'clarity') {
+                            wordErrors[word].mispronunciations++; // Count any error as a "mispronunciation" for this chart's purpose
+                        }
+                    }
+                } else {
+                    console.warn("Skipping malformed wordDetail:", wordDetail); // This is line 604
+                }
+            });
+        }
+    });
+
+    // Calculate accuracy and filter for challenging words (e.g., accuracy < 100%)
+    const challengingWords = [];
+    for (const word in wordErrors) {
+        const stats = wordErrors[word];
+        // Calculate accuracy: (correct attempts / total attempts) * 100
+        // Correct attempts are totalAttempts minus any errors (mispronunciations in this simplified context)
+        const accuracy = stats.totalAttempts > 0 ? ((stats.totalAttempts - stats.mispronunciations) / stats.totalAttempts) * 100 : 100;
+
+        // Only include words with less than 100% accuracy or those that had at least one error
+        if (accuracy < 100 || stats.mispronunciations > 0) {
+            challengingWords.push({ word: word, accuracy: accuracy, mispronunciations: stats.mispronunciations });
+        }
+    }
+
+    // Sort by lowest accuracy, then by most mispronunciations, and take top N
+    challengingWords.sort((a, b) => {
+        if (a.accuracy !== b.accuracy) {
+            return a.accuracy - b.accuracy; // Lower accuracy first
+        }
+        return b.mispronunciations - a.mispronunciations; // More mispronunciations first
+    });
+
+    const topWords = challengingWords.slice(0, 10); // Show top 10 most challenging words
+
+    const labels = topWords.map(w => w.word);
+    const accuracies = topWords.map(w => w.accuracy.toFixed(1));
+
+    doctorWordAccuracyChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Accuracy (%)',
+                data: accuracies,
+                backgroundColor: 'rgba(255, 99, 132, 0.6)', // Reddish color for challenging words
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y', // Horizontal bar chart for better word display
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'Accuracy (%)'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Word'
+                    }
+                }
+            },
+            responsive: true,
+            maintainAspectRatio: true
         }
     });
 }
