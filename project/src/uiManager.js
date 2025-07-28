@@ -5,17 +5,14 @@
  * This includes showing/hiding different views, updating content, and rendering charts.
  */
 
-// Chart.js is loaded via CDN in index.html, so it's available globally.
-// No import statement is needed here.
-
-// Declare DOMElements as a mutable object. They will be populated by initializeDOMElements().
+// Declare DOMElements as a mutable object.
 export const DOMElements = {};
 
-// Chart instances to manage their lifecycle
+// Chart instances
 let progressChartInstance = null;
-let dailySessionsChartInstance = null; // NEW: Chart instance for daily sessions
+let dailySessionsChartInstance = null;
 let doctorPatientChartInstance = null;
-let doctorWordAccuracyChartInstance = null; // NEW: Chart instance for doctor's word accuracy
+let doctorWordAccuracyChartInstance = null;
 
 /**
  * Initializes all DOM elements by getting their references from the document.
@@ -23,12 +20,39 @@ let doctorWordAccuracyChartInstance = null; // NEW: Chart instance for doctor's 
  */
 export function initializeDOMElements() {
     console.log("Initializing DOMElements...");
-    // Assign elements directly to DOMElements object
-    DOMElements.roleSelection = document.getElementById('roleSelection');
+
+    // Auth modals
+    DOMElements.loginModal = document.getElementById('loginModal');
+    DOMElements.registerModal = document.getElementById('registerModal');
+    DOMElements.loginEmail = document.getElementById('loginEmail');
+    DOMElements.loginPassword = document.getElementById('loginPassword');
+    DOMElements.loginSubmitBtn = document.getElementById('loginSubmitBtn');
+    DOMElements.loginMessage = document.getElementById('loginMessage');
+    DOMElements.showRegisterFromLogin = document.getElementById('showRegisterFromLogin');
+    DOMElements.doctorLatestSessionSentence = document.getElementById('doctorLatestSessionSentence');
+    DOMElements.doctorLatestSessionScore = document.getElementById('doctorLatestSessionScore');
+    DOMElements.doctorLatestSessionAudio = document.getElementById('doctorLatestSessionAudio');
+
+
+    DOMElements.registerFullName = document.getElementById('registerFullName');
+    DOMElements.registerEmail = document.getElementById('registerEmail');
+    DOMElements.registerPassword = document.getElementById('registerPassword');
+    DOMElements.registerSubmitBtn = document.getElementById('registerSubmitBtn');
+    DOMElements.registerMessage = document.getElementById('registerMessage');
+    DOMElements.showLoginFromRegister = document.getElementById('showLoginFromRegister');
+
+    // ✅ New Registration Fields
+    DOMElements.registerAge = document.getElementById('registerAge');                  // Patient Age
+    DOMElements.registerSpecialty = document.getElementById('registerSpecialty');      // Doctor Specialty
+    DOMElements.genderRadios = document.querySelectorAll('input[name="genderSelect"]'); // Patient Gender radios
+
+    // User info display
+    DOMElements.userNameDisplay = document.getElementById('userNameDisplay');
+    DOMElements.userIdDisplay = document.getElementById('userIdDisplay');
+
+    // Interfaces
     DOMElements.patientInterface = document.getElementById('patientInterface');
     DOMElements.doctorInterface = document.getElementById('doctorInterface');
-    DOMElements.patientBtn = document.getElementById('patientBtn');
-    DOMElements.doctorBtn = document.getElementById('doctorBtn');
     DOMElements.patientLogoutBtn = document.getElementById('patientLogoutBtn');
     DOMElements.doctorLogoutBtn = document.getElementById('doctorLogoutBtn');
     DOMElements.confettiContainer = document.getElementById('confetti-container');
@@ -49,7 +73,6 @@ export function initializeDOMElements() {
     DOMElements.practiceWordsContainer = document.getElementById('practiceWordsContainer');
     DOMElements.nextSentenceBtn = document.getElementById('nextSentenceBtn');
     DOMElements.startNewSessionBtn = document.getElementById('startNewSessionBtn');
-    DOMElements.userIdDisplay = document.getElementById('userIdDisplay'); // Reverted to userIdDisplay
     DOMElements.historyList = document.getElementById('historyList');
     DOMElements.waveformCanvas = document.getElementById('waveform');
     DOMElements.congratulations = document.getElementById('congratulations');
@@ -58,12 +81,27 @@ export function initializeDOMElements() {
     DOMElements.patientFeedbackList = document.getElementById('patientFeedbackList');
     DOMElements.patientAssignedExercises = document.getElementById('patientAssignedExercises');
     DOMElements.progressChart = document.getElementById('progressChart');
-    DOMElements.dailySessionsChart = document.getElementById('dailySessionsChart'); // NEW: Daily Sessions Chart
+    DOMElements.dailySessionsChart = document.getElementById('dailySessionsChart');
 
-    // Patient Dashboard Overview Stats
+    // Patient Dashboard Stats
     DOMElements.dailyGoalSentences = document.getElementById('dailyGoalSentences');
     DOMElements.practiceStreakDays = document.getElementById('practiceStreakDays');
     DOMElements.newFeedbackCount = document.getElementById('newFeedbackCount');
+
+    // Rubric sliders and labels
+    DOMElements.mispronunciationWeight = document.getElementById('mispronunciationWeight');
+    DOMElements.omissionWeight = document.getElementById('omissionWeight');
+    DOMElements.insertionWeight = document.getElementById('insertionWeight');
+    DOMElements.clarityThreshold = document.getElementById('clarityThreshold');
+
+    DOMElements.mispronunciationWeightValue = document.getElementById('mispronunciationWeightValue');
+    DOMElements.omissionWeightValue = document.getElementById('omissionWeightValue');
+    DOMElements.insertionWeightValue = document.getElementById('insertionWeightValue');
+    DOMElements.clarityThresholdValue = document.getElementById('clarityThresholdValue');
+
+    // Rubric modal
+    DOMElements.rubricMessage = document.getElementById('rubricMessage');
+    DOMElements.customizeRubricModal = document.getElementById('customizeRubricModal');
 
 
     // Doctor UI elements
@@ -73,77 +111,57 @@ export function initializeDOMElements() {
     DOMElements.backToPatientListBtn = document.getElementById('backToPatientListBtn');
     DOMElements.patientDetailsName = document.getElementById('patientDetailsName');
     DOMElements.doctorPatientChartCanvas = document.getElementById('doctorPatientChart');
-    DOMElements.doctorWordAccuracyChart = document.getElementById('doctorWordAccuracyChart'); // NEW: Doctor's Word Accuracy Chart
+    DOMElements.doctorWordAccuracyChart = document.getElementById('doctorWordAccuracyChart');
     DOMElements.doctorFeedbackTextarea = document.getElementById('doctorFeedbackTextarea');
     DOMElements.sendFeedbackBtn = document.getElementById('sendFeedbackBtn');
     DOMElements.doctorPatientFeedbackHistory = document.getElementById('doctorPatientFeedbackHistory');
     DOMElements.patientSearchInput = document.getElementById('patientSearchInput');
     DOMElements.doctorAssignedExercisesHistory = document.getElementById('doctorAssignedExercisesHistory');
 
-    // Doctor's dashboard overview stats
+    // Doctor Stats
     DOMElements.activePatientsCount = document.getElementById('activePatientsCount');
     DOMElements.todaysSessionsCount = document.getElementById('todaysSessionsCount');
     DOMElements.alertsCount = document.getElementById('alertsCount');
 
-
-    // Doctor's latest session details elements
-    DOMElements.doctorLatestSessionSentence = document.getElementById('doctorLatestSessionSentence');
-    DOMElements.doctorLatestSessionScore = document.getElementById('doctorLatestSessionScore');
-    DOMElements.doctorLatestSessionAudio = document.getElementById('doctorLatestSessionAudio');
-
-    // Doctor's Session Management & Admin Tools elements
-    DOMElements.assignExerciseSelect = document.getElementById('assignExerciseSelect');
-    DOMElements.assignExerciseBtn = document.getElementById('assignExerciseBtn');
-    DOMElements.assignmentMessage = document.getElementById('assignmentMessage');
-    DOMElements.exportReportBtn = document.getElementById('exportReportBtn');
-    DOMElements.exportReportMessage = document.getElementById('exportReportMessage');
-    DOMElements.customizeRubricBtn = document.getElementById('customizeRubricBtn');
-    DOMElements.customizeRubricMessage = document.getElementById('customizeRubricMessage');
-
-    // Rubric Customization Modal elements
-    DOMElements.customizeRubricModal = document.getElementById('customizeRubricModal');
-    DOMElements.mispronunciationWeight = document.getElementById('mispronunciationWeight');
-    DOMElements.mispronunciationWeightValue = document.getElementById('mispronunciationWeightValue');
-    DOMElements.omissionWeight = document.getElementById('omissionWeight');
-    DOMElements.omissionWeightValue = document.getElementById('omissionWeightValue');
-    DOMElements.insertionWeight = document.getElementById('insertionWeight');
-    DOMElements.insertionWeightValue = document.getElementById('insertionWeightValue');
-    DOMElements.clarityThreshold = document.getElementById('clarityThreshold');
-    DOMElements.clarityThresholdValue = document.getElementById('clarityThresholdValue');
-    DOMElements.cancelRubricBtn = document.getElementById('cancelRubricBtn');
-    DOMElements.saveRubricBtn = document.getElementById('saveRubricBtn');
-    DOMElements.rubricMessage = document.getElementById('rubricMessage'); // Message area for rubric saving feedback
     console.log("DOMElements initialized:", DOMElements);
 }
 
-
 /**
- * Shows the specified main interface (role selection, patient, or doctor).
- * Hides all other main interfaces.
- * @param {string} interfaceName - The ID of the interface to show ('roleSelection', 'patient', 'doctor').
+ * Shows the specified interface (login, register, patient, doctor).
  */
 export function showInterface(interfaceName) {
-    console.log("showInterface called with:", interfaceName);
-    // Ensure DOMElements are initialized before accessing them
-    if (!DOMElements.roleSelection) {
-        console.error("DOMElements not initialized. Call initializeDOMElements() first.");
-        return;
-    }
-    DOMElements.roleSelection.classList.add('hidden');
-    DOMElements.patientInterface.classList.add('hidden');
-    DOMElements.doctorInterface.classList.add('hidden');
+    console.log("showInterface:", interfaceName);
 
-    if (interfaceName === 'patient') {
+    // Hide all views
+    DOMElements.loginModal?.classList.add('hidden');
+    DOMElements.registerModal?.classList.add('hidden');
+    DOMElements.patientInterface?.classList.add('hidden');
+    DOMElements.doctorInterface?.classList.add('hidden');
+
+    if (interfaceName === 'login') {
+        DOMElements.loginModal.classList.remove('hidden');
+    } else if (interfaceName === 'register') {
+        DOMElements.registerModal.classList.remove('hidden');
+    } else if (interfaceName === 'patient') {
         DOMElements.patientInterface.classList.remove('hidden');
-        console.log("Patient interface shown.");
     } else if (interfaceName === 'doctor') {
         DOMElements.doctorInterface.classList.remove('hidden');
-        console.log("Doctor interface shown.");
-    } else {
-        DOMElements.roleSelection.classList.remove('hidden');
-        console.log("Role selection interface shown.");
     }
 }
+
+/**
+ * Update authenticated user's info display
+ */
+export function updateUserInfo(name, uid) {
+    if (DOMElements.userNameDisplay) {
+        DOMElements.userNameDisplay.textContent = `Welcome, ${name}`;
+    }
+    if (DOMElements.userIdDisplay) {
+        DOMElements.userIdDisplay.textContent = `UID: ${uid}`;
+    }
+}
+
+
 
 /**
  * Shows a specific patient view tab (Dashboard, Practice, History, Feedback).
@@ -288,17 +306,27 @@ export function displaySentenceResults(analysis, audioUrl) {
 
     // Display mispronounced words for practice with listen buttons
     // Filter specifically for 'mispronunciation' errors
-    const mispronouncedWords = analysis.words.filter(w => w.error === 'mispronunciation').map(w => w.word);
+    const mispronouncedWords = analysis.words
+    .filter(w => w.error === 'mispronunciation' && typeof w.word === 'string' && w.word.trim() !== '')
+    .map(w => w.word.trim());
+
+
     if (DOMElements.practiceSection && DOMElements.practiceWordsContainer) {
         if (mispronouncedWords.length > 0) {
             DOMElements.practiceSection.classList.remove('hidden');
             // Generate HTML for each mispronounced word with a listen button
-            DOMElements.practiceWordsContainer.innerHTML = mispronouncedWords.map(word =>
-                `<button class="bg-orange-100 text-orange-800 rounded-full px-3 py-1 flex items-center space-x-1 listen-word-btn" data-word="${word}">
-                    <span>${word}</span>
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M9.383 2.062A8.001 8.001 0 002 10a8.001 8.001 0 007.383 7.938L9.383 18H10a8.001 8.001 0 007.383-7.938L17.383 10H10a8.001 8.001 0 007.383-7.938L17.383 2.062zM10 2a8.001 8.001 0 00-7.383 7.938L2.617 10H10V2z" clip-rule="evenodd"></path></svg>
-                </button>`
-            ).join('');
+            DOMElements.practiceWordsContainer.innerHTML = mispronouncedWords
+        .map(word => `
+            <button class="bg-orange-100 text-orange-800 rounded-full px-3 py-1 flex items-center space-x-1 listen-word-btn"
+                    data-word="${word}">
+                <span>${word}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 00-1.4-3.3.75.75 0 011.05-1.05A6 6 0 0118 12a6 6 0 01-1.85 4.35.75.75 0 11-1.05-1.05A4.5 4.5 0 0016.5 12zm3 0a7.5 7.5 0 00-2.25-5.3.75.75 0 111.05-1.05A9 9 0 0121 12a9 9 0 01-2.7 6.35.75.75 0 11-1.05-1.05A7.5 7.5 0 0019.5 12z"/>
+                </svg>
+            </button>
+        `).join('');
+
+
             // Attach event listeners to the new buttons (delegation handled in patientManager.js)
         } else {
             DOMElements.practiceSection.classList.add('hidden');
@@ -1049,13 +1077,17 @@ export function showDoctorDashboardView() {
  * Shows the doctor patient details view and hides the dashboard view.
  * @param {string} patientName - The name of the patient to display in the details view.
  */
+import { setupDoctorListeners } from './doctorManager.js';
+
 export function showDoctorPatientDetailsView(patientName) {
     console.log("showDoctorPatientDetailsView called with patientName:", patientName);
     if (DOMElements.doctorDashboardView && DOMElements.patientDetailsView && DOMElements.patientDetailsName) {
         DOMElements.doctorDashboardView.classList.add('hidden');
         DOMElements.patientDetailsView.classList.remove('hidden');
         DOMElements.patientDetailsName.textContent = patientName;
+
     } else {
         console.error("Doctor dashboard, patient details view, or patient details name element not found.");
     }
 }
+

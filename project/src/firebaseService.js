@@ -1,16 +1,18 @@
 // src/firebaseService.js
 
 /**
- * @fileoverview Manages all interactions with Firebase services (Authentication, Firestore).
- * Provides functions for user authentication, data storage, and real-time data listening.
+ * @fileoverview Manages Firebase Authentication (Email/Password) and Firestore data storage.
+ * Adds registration, login, logout, and role-based user management.
  */
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
 import {
     getAuth,
-    signInAnonymously,
-    signInWithCustomToken,
-    onAuthStateChanged
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    updateProfile
 } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
 import {
     getFirestore,
@@ -24,22 +26,22 @@ import {
     limit,
     onSnapshot,
     serverTimestamp,
-    getDoc, // Import getDoc for retrieving single documents
-    getDocs, // Import getDocs for retrieving multiple documents from a query
-    updateDoc // IMPORTED: Add updateDoc here to resolve ReferenceError
+    getDoc,
+    getDocs,
+    updateDoc
 } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
-import { FIREBASE_CONFIG, APP_ID, INITIAL_AUTH_TOKEN } from './constants.js';
+import { FIREBASE_CONFIG, APP_ID } from './constants.js';
 
 let app;
 let db;
 let auth;
-let userId = null; // Stores the current user's ID
-let isAuthReadyPromise = null; // Promise to track Firebase auth readiness
+let userId = null;
+let currentUserData = null; // store logged-in user's Firestore data
+let isAuthReadyPromise = null;
 
 /**
- * Initializes Firebase application and authentication.
- * Sets up an auth state listener to update the global userId.
+ * Initialize Firebase and set up auth listener
  */
 export async function initializeFirebase() {
     console.log("Initializing Firebase...");
@@ -48,104 +50,115 @@ export async function initializeFirebase() {
         db = getFirestore(app);
         auth = getAuth(app);
 
-        // Create a promise that resolves when auth state is known
-        isAuthReadyPromise = new Promise(resolve => {
-            const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        // Auth state listener
+        isAuthReadyPromise = new Promise((resolve) => {
+            onAuthStateChanged(auth, async (user) => {
                 if (user) {
                     userId = user.uid;
-                    console.log("Firebase Auth State Changed: User is signed in with UID:", userId);
-                    // Ensure patient record exists for this user upon successful authentication
-                    await ensurePatientExists(userId);
+                    console.log("User signed in:", user.uid);
+                    currentUserData = await fetchUserData(user.uid);
                 } else {
-                    console.log("Firebase Auth State Changed: No user is signed in. Attempting anonymous sign-in or custom token sign-in.");
+                    console.log("No user signed in.");
                     userId = null;
-                    try {
-                        if (INITIAL_AUTH_TOKEN) {
-                            await signInWithCustomToken(auth, INITIAL_AUTH_TOKEN);
-                            userId = auth.currentUser.uid;
-                            console.log("Signed in with custom token. UID:", userId);
-                            await ensurePatientExists(userId);
-                        } else {
-                            await signInAnonymously(auth);
-                            userId = auth.currentUser.uid;
-                            console.log("Signed in anonymously. UID:", userId);
-                            await ensurePatientExists(userId);
-                        }
-                    } catch (signInError) {
-                        console.error("Error during initial sign-in:", signInError);
-                        // Fallback to a random ID if sign-in fails (for very basic functionality without auth)
-                        userId = crypto.randomUUID();
-                        console.warn("Using a random UUID as userId due to sign-in failure:", userId);
-                    }
+                    currentUserData = null;
                 }
-                unsubscribe(); // Unsubscribe after initial state is resolved
-                resolve(); // Resolve the promise once auth state is determined
+                resolve();
             });
         });
 
-        await isAuthReadyPromise; // Wait for the initial auth state to be determined
+        await isAuthReadyPromise;
         console.log("Firebase initialized and auth state determined.");
-
-    } catch (error) {
-        console.error("Failed to initialize Firebase:", error);
-        userId = crypto.randomUUID(); // Fallback to a random ID if Firebase init fails
-        console.warn("Using a random UUID as userId due to Firebase initialization failure:", userId);
-        if (!isAuthReadyPromise) { // Ensure promise is always resolved
-            isAuthReadyPromise = Promise.resolve();
-        }
+    } catch (err) {
+        console.error("Firebase init failed:", err);
+        userId = null;
+        currentUserData = null;
+        if (!isAuthReadyPromise) isAuthReadyPromise = Promise.resolve();
     }
 }
 
 /**
- * Waits for Firebase authentication to be ready.
- * @returns {Promise<void>} A promise that resolves when Firebase auth is ready.
+ * Wait until auth state is ready
  */
 export function waitForFirebaseAuthReady() {
-    return isAuthReadyPromise || Promise.resolve(); // Return the promise or an immediately resolved one if not set
+    return isAuthReadyPromise || Promise.resolve();
 }
 
 /**
- * Returns the current user's ID.
- * @returns {string|null} The current user's ID, or null if not authenticated.
+ * Get current UID
  */
 export function getUserId() {
     return userId;
 }
 
 /**
- * Ensures a patient document exists for the given userId.
- * This is a simplified auto-registration for patients.
- * In a real app, doctors might add patients, or there'd be a more formal signup.
- * @param {string} uid - The user ID to check/create as a patient.
+ * Register new user
  */
-async function ensurePatientExists(uid) {
-    if (!db) return;
-    // Corrected path to explicitly follow the security rule structure for public data
-    // Rule: /artifacts/{appId}/public/data/{your_collection_name}/{documentId}
-    // So, 'patients' becomes {your_collection_name} and 'uid' becomes {documentId}
-    const patientsCollectionRef = collection(db, `artifacts/${APP_ID}/public/data/patients`);
-    const patientRef = doc(patientsCollectionRef, uid); // This correctly sets 'uid' as the document ID
+export async function registerUser(email, password, fullName, role, extraData = {}) {
+    const userCred = await createUserWithEmailAndPassword(auth, email, password);
+    await updateProfile(userCred.user, { displayName: fullName });
 
-    try {
-        const patientSnap = await getDoc(patientRef);
-        if (!patientSnap.exists()) {
-            // If patient doesn't exist, create a basic record
-            await setDoc(patientRef, {
-                name: `Patient ${uid.substring(0, 6)}`, // A simple default name
-                createdAt: serverTimestamp(),
-                lastActivity: serverTimestamp(),
-                // Add other default patient fields here
-            });
-            console.log(`Patient record created for ${uid}`);
-        } else {
-            // Update last activity using updateDoc for clarity and explicit partial update
-            await updateDoc(patientRef, { lastActivity: serverTimestamp() });
-            console.log(`Patient record updated for ${uid}`);
-        }
-    } catch (error) {
-        console.error("Error ensuring patient exists:", error);
-    }
+    const uid = userCred.user.uid;
+    await setDoc(doc(db, "users", uid), {
+        uid,
+        name: fullName,
+        email,
+        role,
+        ...extraData,
+        createdAt: serverTimestamp()
+    });
+
+    console.log("User registered:", uid, "as", role);
+    return uid;
 }
+
+/**
+ * Login existing user
+ */
+export async function loginUser(email, password) {
+    const userCred = await signInWithEmailAndPassword(auth, email, password);
+    currentUserData = await fetchUserData(userCred.user.uid);
+    return userCred.user;
+}
+
+/**
+ * Logout user
+ */
+export async function logoutUser() {
+    await signOut(auth);
+    userId = null;
+    currentUserData = null;
+    console.log("User logged out.");
+}
+
+/**
+ * Fetch user Firestore data
+ */
+export async function fetchUserData(uid) {
+    const userDoc = await getDoc(doc(db, "users", uid));
+    if (userDoc.exists()) {
+        return userDoc.data();
+    }
+    return null;
+}
+
+/**
+ * Get user's role
+ */
+export async function getUserRole(uid) {
+    const data = await fetchUserData(uid);
+    return data ? data.role : null;
+}
+
+/**
+ * Get current logged-in user's data
+ */
+export function getCurrentUserData() {
+    return currentUserData;
+}
+
+
+// ... (Keep all other Firestore methods unchanged: listenToPronunciationHistory, savePatientFeedback, etc.)
+
 
 
 /**
@@ -227,21 +240,25 @@ export function listenToPronunciationHistory(patientId, callback) {
  * @param {string} doctorId - The UID of the doctor providing feedback.
  */
 export async function savePatientFeedback(patientUid, feedbackText, doctorId) {
-    await waitForFirebaseAuthReady(); // Ensure auth is ready
     if (!patientUid || !doctorId) {
-        console.error("Cannot save feedback: Patient UID or Doctor ID not available.");
+        console.error("Cannot save feedback: Patient UID or Doctor ID missing.");
         return;
     }
+
     try {
-        const docRef = await addDoc(collection(db, `artifacts/${APP_ID}/users/${patientUid}/feedback`), {
-            feedbackText: feedbackText,
-            doctorId: doctorId,
-            timestamp: serverTimestamp(),
-            read: false // NEW: Mark feedback as unread by default
-        });
-        console.log("Feedback saved with ID: ", docRef.id);
-    } catch (e) {
-        console.error("Error adding feedback document: ", e);
+        const docRef = await addDoc(
+            collection(db, `artifacts/${APP_ID}/users/${patientUid}/assignedExercises`), // ✅ Corrected path
+            {
+                feedbackText,
+                doctorId,
+                timestamp: serverTimestamp(),
+                read: false
+            }
+        );
+        console.log("[FirebaseService Debug] Feedback saved:", docRef.id);
+    } catch (error) {
+        console.error("Error adding feedback document: ", error);
+        throw error;
     }
 }
 
@@ -252,30 +269,20 @@ export async function savePatientFeedback(patientUid, feedbackText, doctorId) {
  * @returns {function(): void} An unsubscribe function to stop listening.
  */
 export function listenToPatientFeedback(patientUid, callback) {
-    if (!patientUid) {
-        console.error("Cannot listen to feedback: Patient UID not provided.");
-        callback([]);
-        return () => {};
-    }
-    console.log(`[FirebaseService Debug] Setting up real-time listener for patient feedback for patient: ${patientUid}`);
-    const q = query(
-        collection(db, `artifacts/${APP_ID}/users/${patientUid}/feedback`),
-        orderBy("timestamp", "desc"),
-        limit(20)
-    );
+    try {
+        const q = query(
+            collection(db, `artifacts/${APP_ID}/users/${patientUid}/patientFeedback`), // ✅ Corrected path
+            orderBy("timestamp", "desc")
+        );
 
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const feedback = [];
-        querySnapshot.forEach((doc) => {
-            feedback.push({ id: doc.id, ...doc.data() });
+        return onSnapshot(q, (snapshot) => {
+            const feedback = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            console.log("[FirebaseService Debug] Fetched feedback data:", feedback);
+            callback(feedback);
         });
-        console.log("[FirebaseService Debug] Fetched feedback data:", feedback);
-        callback(feedback);
-    }, (error) => {
-        console.error("Error listening to patient feedback:", error);
-        callback([]);
-    });
-    return unsubscribe;
+    } catch (error) {
+        console.error("Error listening to patient feedback: ", error);
+    }
 }
 
 /**
@@ -300,30 +307,27 @@ export async function markFeedbackAsRead(patientUid, feedbackId) {
 
 
 /**
- * Fetches a list of patients for the doctor's dashboard.
- * In a real app, this would involve a more sophisticated query,
- * e.g., patients assigned to this doctor. For now, it fetches all users
- * who have pronunciation history.
- * @returns {Promise<Array<Object>>} An array of patient objects.
+ * Fetches a list of patients for the doctor's dashboard from /users where role = 'patient'.
+ * Also computes last activity using pronunciation history under artifacts.
  */
 export async function fetchPatientsForDoctor() {
-    await waitForFirebaseAuthReady(); // Ensure auth is ready
+    await waitForFirebaseAuthReady();
     if (!db) {
         console.error("Firestore not ready. Cannot fetch patients.");
         return [];
     }
     try {
-        // Fetch from the public 'patients' collection
-        const patientsCollectionRef = collection(db, `artifacts/${APP_ID}/public/data/patients`);
-        const q = query(patientsCollectionRef, orderBy("lastActivity", "desc"));
-        const querySnapshot = await getDocs(q);
+        // Query users collection for patient profiles
+        const patientsQuery = query(collection(db, "users"), where("role", "==", "patient"));
+        const snapshot = await getDocs(patientsQuery);
 
         const patients = [];
-        for (const docSnapshot of querySnapshot.docs) {
-            const patientId = docSnapshot.id;
-            const patientData = docSnapshot.data();
 
-            // Fetch patient's latest history item from private collection to get actual last activity if available
+        for (const docSnap of snapshot.docs) {
+            const patientId = docSnap.id;
+            const patientData = docSnap.data();
+
+            // Compute last activity from pronunciation history (artifacts path)
             const historyQuery = query(
                 collection(db, `artifacts/${APP_ID}/users/${patientId}/pronunciationHistory`),
                 orderBy("timestamp", "desc"),
@@ -332,27 +336,27 @@ export async function fetchPatientsForDoctor() {
             const historySnapshot = await getDocs(historyQuery);
 
             let lastActivityString = 'N/A';
-            if (!historySnapshot.empty && historySnapshot.docs[0].data().timestamp) {
-                const lastTimestamp = historySnapshot.docs[0].data().timestamp.toDate();
-                lastActivityString = timeAgo(lastTimestamp);
-            } else if (patientData.lastActivity) {
-                lastActivityString = timeAgo(patientData.lastActivity.toDate());
+            if (!historySnapshot.empty) {
+                const lastTimestamp = historySnapshot.docs[0].data().timestamp?.toDate();
+                if (lastTimestamp) lastActivityString = timeAgo(lastTimestamp);
             }
 
             patients.push({
                 id: patientId,
                 name: patientData.name || `Patient ${patientId.substring(0, 6)}`,
-                diagnosis: patientData.diagnosis || 'Undiagnosed', // Placeholder
+                diagnosis: patientData.diagnosis || 'Undiagnosed',
                 lastActivity: lastActivityString,
             });
         }
-        console.log("[FirebaseService Debug] Fetched patients for doctor:", patients);
+
+        console.log("[FirebaseService] Fetched patients:", patients);
         return patients;
     } catch (e) {
-        console.error("Error fetching patients for doctor: ", e);
+        console.error("Error fetching patients:", e);
         return [];
     }
 }
+
 
 /**
  * Helper function to format time into "X time ago" string.
@@ -395,7 +399,7 @@ export async function saveAssignedExercise(patientUid, exerciseName, assignedByD
         console.log("Assigned exercise saved with ID: ", docRef.id);
     } catch (e) {
         console.error("Error assigning exercise: ", e);
-        throw e; // Re-throw to be caught by calling function
+        throw e;
     }
 }
 
@@ -405,31 +409,24 @@ export async function saveAssignedExercise(patientUid, exerciseName, assignedByD
  * @param {function(Array<Object>): void} callback - Callback function to receive assigned exercises data.
  * @returns {function(): void} An unsubscribe function to stop listening.
  */
-export function listenToAssignedExercises(patientUid, callback) {
-    if (!patientUid) {
-        console.error("Cannot listen to assigned exercises: Patient UID not provided.");
-        callback([]);
-        return () => {};
-    }
-    console.log(`[FirebaseService Debug] Setting up real-time listener for assigned exercises for patient: ${patientUid}`);
+export function listenToAssignedExercises(patientId, callback) {
     const q = query(
-        collection(db, `artifacts/${APP_ID}/users/${patientUid}/assignedExercises`),
-        orderBy("assignedAt", "desc")
+        collection(db, `artifacts/${APP_ID}/users/${patientId}/assignedExercises`),
+        orderBy('assignedAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const exercises = [];
-        querySnapshot.forEach((doc) => {
-            exercises.push({ id: doc.id, ...doc.data() });
-        });
-        console.log("[FirebaseService Debug] Fetched assigned exercises data:", exercises);
-        callback(exercises);
+    return onSnapshot(q, (snapshot) => {
+        const assignedExercises = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        console.log("[FirebaseService Debug] Fetched assigned exercises:", assignedExercises);
+        callback(assignedExercises);
     }, (error) => {
-        console.error("Error listening to assigned exercises:", error);
-        callback([]);
+        console.error("Error listening to assigned exercises: ", error);
     });
-    return unsubscribe;
 }
+
 
 /**
  * Saves the doctor's custom rubric settings to Firestore.
@@ -443,9 +440,8 @@ export async function saveRubricSettings(doctorId, settings) {
         throw new Error("Doctor ID not available.");
     }
     try {
-        // Use setDoc to create or overwrite a single document for the doctor's settings
         const docRef = doc(db, `artifacts/${APP_ID}/users/${doctorId}/rubricSettings/customRubric`);
-        await setDoc(docRef, settings, { merge: true }); // Use merge to update specific fields
+        await setDoc(docRef, settings, { merge: true });
         console.log("Rubric settings saved successfully for doctor:", doctorId);
     } catch (e) {
         console.error("Error saving rubric settings: ", e);
@@ -481,63 +477,57 @@ export async function getRubricSettings(doctorId) {
 }
 
 /**
- * Fetches the total count of active patients.
- * @returns {Promise<number>} The number of active patients.
+ * Fetches the count of all active patients (role = 'patient').
  */
 export async function fetchActivePatientsCount() {
     await waitForFirebaseAuthReady();
-    if (!db) {
-        console.error("Firestore not ready. Cannot fetch active patients count.");
-        return 0;
-    }
+    if (!db) return 0;
+
     try {
-        const patientsCollectionRef = collection(db, `artifacts/${APP_ID}/public/data/patients`);
-        const querySnapshot = await getDocs(patientsCollectionRef);
-        return querySnapshot.size; // Returns the number of documents in the collection
+        const q = query(collection(db, "users"), where("role", "==", "patient"));
+        const snapshot = await getDocs(q);
+        return snapshot.size;
     } catch (e) {
-        console.error("Error fetching active patients count: ", e);
+        console.error("Error fetching active patients count:", e);
         return 0;
     }
 }
 
 /**
- * Fetches the count of practice sessions recorded today across all patients.
- * NOTE: This can be inefficient for a very large number of users/sessions.
- * For a highly scalable solution, consider server-side aggregation or a dedicated daily summary collection.
- * @returns {Promise<number>} The number of sessions today.
+ * Fetches the total count of pronunciation sessions today across all patients.
  */
 export async function fetchTodaysSessionsCount() {
     await waitForFirebaseAuthReady();
-    if (!db) {
-        console.error("Firestore not ready. Cannot fetch today's sessions count.");
-        return 0;
-    }
+    if (!db) return 0;
+
     try {
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Start of today
+        today.setHours(0, 0, 0, 0);
 
-        // To count sessions across all patients, we need to query each patient's history.
-        // This requires fetching all patient IDs first.
-        const patients = await fetchPatientsForDoctor(); // Re-use existing patient fetch
+        // Get all patients (role = 'patient')
+        const q = query(collection(db, "users"), where("role", "==", "patient"));
+        const snapshot = await getDocs(q);
+
         let todaysSessions = 0;
 
-        for (const patient of patients) {
-            const historyCollectionRef = collection(db, `artifacts/${APP_ID}/users/${patient.id}/pronunciationHistory`);
-            // Query for documents where timestamp is greater than or equal to the start of today
-            const q = query(
-                historyCollectionRef,
+        for (const docSnap of snapshot.docs) {
+            const patientId = docSnap.id;
+            const historyQuery = query(
+                collection(db, `artifacts/${APP_ID}/users/${patientId}/pronunciationHistory`),
                 where("timestamp", ">=", today),
-                orderBy("timestamp", "desc") // orderBy is still needed for where clauses on timestamp
+                orderBy("timestamp", "desc")
             );
-            const querySnapshot = await getDocs(q);
-            todaysSessions += querySnapshot.size;
+            const historySnapshot = await getDocs(historyQuery);
+            todaysSessions += historySnapshot.size;
         }
+
         return todaysSessions;
     } catch (e) {
-        console.error("Error fetching today's sessions count: ", e);
+        console.error("Error fetching today's sessions count:", e);
         return 0;
     }
 }
+
 
 /**
  * Fetches the number of practice sessions completed today by a specific patient.

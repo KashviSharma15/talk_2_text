@@ -1,103 +1,177 @@
 // src/main.js
 
-/**
- * @fileoverview Main entry point for the Speech Therapy Platform application.
- * Handles initial Firebase setup, role selection, and delegates to
- * patient-specific or doctor-specific managers.
- */
-
-import { initializeFirebase, waitForFirebaseAuthReady, getUserId } from './firebaseService.js';
-import { initializePatientInterface, cleanupPatientListeners } from './patientManager.js'; // Updated import for patientManager
+import {
+    initializeFirebase,
+    waitForFirebaseAuthReady,
+    loginUser,
+    registerUser,
+    logoutUser,
+    getUserRole,
+    getUserId,
+    getCurrentUserData
+} from './firebaseService.js';
+import { initializePatientInterface, cleanupPatientListeners } from './patientManager.js';
 import { setupDoctorListeners, cleanupDoctorListeners, loadPatients } from './doctorManager.js';
-import { DOMElements, showInterface, initializeDOMElements } from './uiManager.js'; // Import initializeDOMElements
-import { initializeAsrModel } from './asrService.js'; // Import ASR model initializer
+import { DOMElements, showInterface, initializeDOMElements, updateUserInfo } from './uiManager.js';
+import { initializeAsrModel } from './asrService.js';
 
-// Global variable to keep track of the current user role
 let currentUserRole = null;
 
-/**
- * Initializes the application when the window loads.
- * Sets up Firebase and initial UI.
- */
-window.onload = async () => {
-    console.log("Window loaded. Initializing DOM elements...");
-    initializeDOMElements(); // NEW: Initialize DOM elements first!
-    console.log("DOM elements initialized. Initializing Firebase...");
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log("Initializing DOM...");
+    initializeDOMElements();
 
-    // Attach static event listeners for role selection and logout buttons
-    // These must be attached AFTER DOMElements are initialized
-    if (DOMElements.patientBtn) {
-        DOMElements.patientBtn.addEventListener('click', () => selectRole('patient'));
+    attachAuthEventListeners();
+    setupRoleToggle(); // ✅ NEW: Enable patient/doctor registration field toggle
+
+    console.log("Initializing Firebase...");
+    await initializeFirebase();
+    await waitForFirebaseAuthReady();
+
+    const uid = getUserId();
+    if (uid) {
+        console.log("User already signed in:", uid);
+        const role = await getUserRole(uid);
+        const userData = getCurrentUserData();
+        if (role) {
+            updateUserInfo(userData?.name || "User", uid);
+            redirectToDashboard(role);
+        } else {
+            showInterface('login');
+        }
+    } else {
+        console.log("No user signed in. Showing login...");
+        showInterface('login');
     }
-    if (DOMElements.doctorBtn) {
-        DOMElements.doctorBtn.addEventListener('click', () => selectRole('doctor'));
-    }
+
+    console.log("Initializing ASR model...");
+    await initializeAsrModel(() => {});
+});
+
+/**
+ * Attach login/register/logout listeners
+ */
+function attachAuthEventListeners() {
+    // Switch between login/register modals
+    DOMElements.showRegisterFromLogin.addEventListener('click', (e) => {
+        e.preventDefault();
+        showInterface('register');
+    });
+
+    DOMElements.showLoginFromRegister.addEventListener('click', (e) => {
+        e.preventDefault();
+        showInterface('login');
+    });
+
+    // Handle login
+    DOMElements.loginSubmitBtn.addEventListener('click', async () => {
+        const email = DOMElements.loginEmail.value.trim();
+        const password = DOMElements.loginPassword.value.trim();
+        try {
+            await loginUser(email, password);
+            const uid = getUserId();
+            const role = await getUserRole(uid);
+            const userData = getCurrentUserData();
+            updateUserInfo(userData?.name || "User", uid);
+            redirectToDashboard(role);
+        } catch (err) {
+            console.error("Login failed:", err);
+            DOMElements.loginMessage.textContent = "Invalid email or password.";
+            DOMElements.loginMessage.classList.remove('hidden');
+        }
+    });
+
+    // Handle registration
+    DOMElements.registerSubmitBtn.addEventListener('click', async () => {
+        const fullName = DOMElements.registerFullName.value.trim();
+        const email = DOMElements.registerEmail.value.trim();
+        const password = DOMElements.registerPassword.value.trim();
+        const role = document.querySelector('input[name="roleSelect"]:checked')?.value;
+
+        const extraData = {};
+
+        // Role-specific fields
+        if (role === 'patient') {
+            extraData.age = DOMElements.registerAge.value.trim();
+            extraData.gender = document.querySelector('input[name="genderSelect"]:checked')?.value;
+        } else if (role === 'doctor') {
+            extraData.specialty = DOMElements.registerSpecialty.value.trim();
+        }
+
+        // Validation
+        if (!fullName || !email || !password || !role ||
+            (role === 'patient' && (!extraData.age || !extraData.gender)) ||
+            (role === 'doctor' && !extraData.specialty)) {
+            DOMElements.registerMessage.textContent = "All fields are required.";
+            DOMElements.registerMessage.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            await registerUser(email, password, fullName, role, extraData);
+            const uid = getUserId();
+            updateUserInfo(fullName, uid);
+            redirectToDashboard(role);
+        } catch (err) {
+            console.error("Registration failed:", err);
+            DOMElements.registerMessage.textContent = "Registration failed. Try again.";
+            DOMElements.registerMessage.classList.remove('hidden');
+        }
+    });
+
+    // Logout buttons
     if (DOMElements.patientLogoutBtn) {
-        DOMElements.patientLogoutBtn.addEventListener('click', () => logout());
+        DOMElements.patientLogoutBtn.addEventListener('click', handleLogout);
     }
     if (DOMElements.doctorLogoutBtn) {
-        DOMElements.doctorLogoutBtn.addEventListener('click', () => logout());
-    }
-
-    await initializeFirebase();
-    console.log("Firebase initialization complete. Showing role selection interface.");
-    showInterface('roleSelection'); // Always start with role selection
-
-    // Initialize ASR model in the background after core app loads
-    console.log("Initializing ASR model...");
-    // Pass a dummy function for status update here, as main.js doesn't directly update ASR status
-    await initializeAsrModel(() => {}); 
-};
-
-/**
- * Selects a user role and updates the UI accordingly.
- * @param {string} role - The selected role ('patient' or 'doctor').
- */
-async function selectRole(role) {
-    // Clean up previous role's listeners before setting new role
-    if (currentUserRole === 'patient') { 
-        cleanupPatientListeners();
-    } else if (currentUserRole === 'doctor') {
-        cleanupDoctorListeners();
-    }
-
-    currentUserRole = role; // Set new role
-    console.log(`Role selected: ${role}`);
-
-    // Wait for Firebase Auth to be fully ready before proceeding
-    await waitForFirebaseAuthReady();
-    const userId = getUserId();
-    if (!userId) {
-        console.error("User ID not available after Firebase auth ready. Cannot proceed with role selection.");
-        // Use a custom modal or message box instead of alert
-        // alert("Failed to authenticate with Firebase. Please try again.");
-        return;
-    }
-
-    // Show the appropriate interface and set up listeners for the new role
-    if (role === 'patient') {
-        showInterface('patient');
-        initializePatientInterface(); // Call the patient manager's initialization
-    } else if (role === 'doctor') {
-        showInterface('doctor');
-        setupDoctorListeners(); // Set up doctor-specific listeners
-        loadPatients(); // Load patients only when doctor view is active
+        DOMElements.doctorLogoutBtn.addEventListener('click', handleLogout);
     }
 }
 
 /**
- * Logs out the current user and returns to role selection.
+ * ✅ NEW: Toggle patient/doctor registration fields dynamically
  */
-function logout() {
-    console.log("Logging out...");
-    // Perform any necessary cleanup for the current role before logging out
-    if (currentUserRole === 'patient') {
-        cleanupPatientListeners();
-    } else if (currentUserRole === 'doctor') {
-        cleanupDoctorListeners();
-    }
+function setupRoleToggle() {
+    const roleRadios = document.querySelectorAll('input[name="roleSelect"]');
+    const patientFields = document.getElementById('patientFields');
+    const doctorFields = document.getElementById('doctorFields');
 
-    currentUserRole = null; // Reset role
-    showInterface('roleSelection'); // Go back to role selection
-    console.log("Logged out. Returned to role selection.");
+    roleRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            if (radio.value === 'patient') {
+                patientFields.classList.remove('hidden');
+                doctorFields.classList.add('hidden');
+            } else if (radio.value === 'doctor') {
+                doctorFields.classList.remove('hidden');
+                patientFields.classList.add('hidden');
+            }
+        });
+    });
+}
+
+/**
+ * Redirects user based on their role
+ */
+function redirectToDashboard(role) {
+    currentUserRole = role;
+    if (role === 'patient') {
+        showInterface('patient');
+        initializePatientInterface();
+    } else if (role === 'doctor') {
+        showInterface('doctor');
+        setupDoctorListeners();
+        loadPatients();
+    }
+}
+
+/**
+ * Handle logout
+ */
+async function handleLogout() {
+    console.log("Logging out...");
+    if (currentUserRole === 'patient') cleanupPatientListeners();
+    if (currentUserRole === 'doctor') cleanupDoctorListeners();
+    await logoutUser();
+    currentUserRole = null;
+    showInterface('login');
 }

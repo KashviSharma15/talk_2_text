@@ -51,47 +51,43 @@ let assignedExercisesUnsubscribe = null; // Variable for assigned exercises list
 /**
  * Initializes the patient interface, sets up event listeners, and loads initial data.
  */
+
+import {getUserRole, getCurrentUserData } from './firebaseService.js';
 export async function initializePatientInterface() {
     console.log("Initializing Patient Interface...");
 
-    // Display user ID
     const userId = getUserId();
-    if (userId) {
-        updateUserIdDisplay(userId);
-    } else {
-        updateUserIdDisplay("Not logged in");
+    if (!userId) {
+        console.error("No authenticated user. Redirecting to login...");
+        return;
     }
 
-    // Set up navigation listeners
+    const role = await getUserRole(userId);
+    if (role !== 'patient') {
+        console.error("Access denied: Only patients can use this interface.");
+        return;
+    }
+
+    const userData = getCurrentUserData();
+    updateUserIdDisplay(userId);
+
+    // Set up navigation listeners, practice handlers, and load data
     DOMElements.patientNavBtns.forEach(btn => {
-        // Remove existing listener to prevent duplicates if initializePatientInterface is called multiple times
         btn.removeEventListener('click', handlePatientNavClick);
         btn.addEventListener('click', handlePatientNavClick);
     });
 
-    // Attach record/stop/next/start new session listeners
     attachPracticeListeners();
-
-    // Attach listener for mispronounced words container
-    // Using event delegation for dynamically added buttons
     if (DOMElements.practiceWordsContainer) {
-        DOMElements.practiceWordsContainer.removeEventListener('click', handleMispronouncedWordClick); // Prevent duplicates
+        DOMElements.practiceWordsContainer.removeEventListener('click', handleMispronouncedWordClick);
         DOMElements.practiceWordsContainer.addEventListener('click', handleMispronouncedWordClick);
     }
 
-    // Default to Dashboard view on load and load exercises
     showPatientView('patientDashboard');
-    // Ensure assigned exercises are loaded and dashboard stats are updated on initial load
     await loadAndDisplayAssignedExercises();
     await updatePatientDashboard();
-
-
-    // If the default view is 'patientPractice' or user navigates to it, start a session
-    // This check ensures we don't start a session if the dashboard is the initial view.
-    if (document.getElementById('patientPractice').classList.contains('hidden') === false) {
-        startNewPracticeSession();
-    }
 }
+
 
 /**
  * Handles clicks on patient navigation buttons.

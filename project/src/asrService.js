@@ -11,8 +11,7 @@
  // IMPORTANT: Configure transformers.js to look for models in a local 'models' directory. 
  // This is the most direct way to resolve the persistent 404 and TypeError. 
  // We explicitly set env.localModelPath and disable remote fetching. 
- env.localModelPath = './models/'; // Explicitly point to a local 'models' folder 
- env.allowRemoteModels = false; // Disable remote fetching to force local loading 
+ env.allowRemoteModels = true; 
 
  // Define the ASR pipeline outside the function to load the model once 
  let transcriber = null; 

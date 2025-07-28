@@ -14,8 +14,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         /* Base font for the body */
-        body { 
-            font-family: 'Inter', sans-serif; 
+        body {
+            font-family: 'Inter', sans-serif;
             position: relative; /* Needed for confetti positioning */
             background-color: #f4f7f6; /* Light background */
             min-height: 100vh;
@@ -34,9 +34,9 @@
             height: 50px;
             animation: spin 1s linear infinite;
         }
-        @keyframes spin { 
-            0% { transform: rotate(0deg); } 
-            100% { transform: rotate(360deg); } 
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
         /* Text highlighting for analysis results */
         .highlight-correct { color: #22c55e; } /* Green for correctly pronounced words */
@@ -44,7 +44,7 @@
         .highlight-omission { color: #a1a1aa; text-decoration: line-through; } /* Gray and strikethrough for omitted words */
         .highlight-insertion { color: #3b82f6; font-weight: bold; } /* Blue and bold for inserted words */
         .highlight-clarity { color: #f97316; font-style: italic; text-decoration: underline dotted; } /* Orange, italic, and dotted underline for unclear words */
-        
+
         /* Flash animations for feedback */
         @keyframes flash-green {
             0%, 100% { background-color: #dcfce7; border-color: #22c55e; } /* Light green background, green border */
@@ -56,7 +56,7 @@
             50% { background-color: white; border-color: #d1d5db; } /* White background, default border */
         }
         .flash-incorrect { animation: flash-red 1.5s ease-out; } /* Apply red flash animation */
-        
+
         /* Utility class to hide elements */
         .hidden { display: none; }
 
@@ -112,19 +112,8 @@
     <!-- Confetti container for celebratory effects -->
     <div id="confetti-container"></div>
 
-    <!-- Role Selection Interface: Shown initially to choose user type -->
-    <div id="roleSelection" class="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
-        <h1 class="text-3xl font-bold text-gray-800 mb-2">Speech Therapy Platform</h1>
-        <p class="text-gray-600 mb-8">Please select your role to continue.</p>
-        <div class="space-y-4">
-            <button id="patientBtn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-5 rounded-lg shadow-md transition duration-300 ease-in-out text-lg">
-                I am a Patient 🧒
-            </button>
-            <button id="doctorBtn" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-3 px-5 rounded-lg shadow-md transition duration-300 ease-in-out text-lg">
-                I am a Doctor 👩‍⚕️
-            </button>
-        </div>
-    </div>
+    <!-- The original roleSelection div is removed as per the new login flow.
+         The login modal will now be the initial entry point. -->
 
     <!-- Patient Interface: Hidden by default, shown when "Patient" is selected -->
     <div id="patientInterface" class="hidden max-w-4xl w-full bg-white rounded-xl shadow-lg p-8 space-y-6">
@@ -132,7 +121,7 @@
             <h1 class="text-2xl font-bold text-gray-800">Patient Portal</h1>
             <button id="patientLogoutBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-lg text-sm">Log Out</button>
         </div>
-        
+
         <!-- Patient Navigation Tabs -->
         <div class="flex justify-center border-b border-gray-200">
             <button data-view="patientDashboard" class="patient-nav-btn font-semibold py-3 px-5 border-b-2 border-blue-500 text-blue-500">Dashboard</button>
@@ -189,7 +178,7 @@
                 </div>
                 <!-- Loader for speech analysis -->
                 <div id="loader" class="flex justify-center items-center hidden"><div class="loader"></div><p class="ml-4 text-gray-600">Analyzing your speech...</p></div>
-                
+
                 <!-- Results Content: Hidden by default, shown after analysis -->
                 <div id="resultsContent" class="hidden bg-white border border-gray-200 rounded-lg p-6">
                     <div id="congratulations" class="hidden text-center mb-4">
@@ -256,7 +245,7 @@
             <h1 class="text-2xl font-bold text-gray-800">Therapist Dashboard</h1>
             <button id="doctorLogoutBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-lg text-sm">Log Out</button>
         </div>
-        
+
         <!-- Doctor Dashboard View -->
         <div id="doctorDashboardView">
             <h2 class="text-xl font-bold text-gray-700 mb-4">Dashboard Overview</h2>
@@ -274,7 +263,7 @@
                     <p id="alertsCount" class="text-3xl font-bold text-red-900">Loading...</p>
                 </div>
             </div>
-            
+
             <div class="mt-6">
                 <h2 class="text-xl font-bold text-gray-700 mb-4">Patient Management</h2>
                 <input type="text" id="patientSearchInput" placeholder="Search patients..." class="w-full p-2 border rounded-lg mb-4">
@@ -283,12 +272,12 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Patient Details View (for doctors) -->
         <div id="patientDetailsView" class="hidden">
             <button id="backToPatientListBtn" class="mb-4 bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg">&larr; Back to Patient List</button>
             <h2 id="patientDetailsName" class="text-2xl font-bold text-gray-800 mb-4"></h2>
-            
+
             <div class="grid lg:grid-cols-2 gap-6">
                 <!-- Left Column: Assessment & Progress & Admin Tools -->
                 <div class="space-y-6">
@@ -356,7 +345,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Rubric Customization Modal -->
     <div id="customizeRubricModal" class="modal-overlay hidden">
         <div class="modal-content">
@@ -390,52 +379,121 @@
             <div id="rubricMessage" class="mt-4 text-sm font-medium hidden"></div>
         </div>
     </div>
-    
-    <!-- Login Modal (Hidden by default) -->
-    <div id="loginModal" class="modal-overlay hidden">
-        <div class="modal-content text-center" style="background-color: #f8f0e3; padding: 2rem; border-radius: 0.75rem;">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">Login</h2>
-            <div class="space-y-4">
-                <div>
-                    <label for="loginEmail" class="block text-left text-gray-700 font-semibold mb-1">Email:</label>
-                    <input type="email" id="loginEmail" placeholder="Eg : abc123@gmail.com" class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-                </div>
-                <div>
-                    <label for="loginPassword" class="block text-left text-gray-700 font-semibold mb-1">Password:</label>
-                    <input type="password" id="loginPassword" class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-                </div>
-                <button id="loginSubmitBtn" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 px-5 rounded-lg transition duration-300 ease-in-out">Login</button>
-            </div>
-            <p class="text-sm text-gray-600 mt-4">Don't have an account? <a href="#" id="showRegisterFromLogin" class="text-blue-600 hover:underline">Register</a></p>
-            <p id="loginMessage" class="text-red-500 text-sm mt-2 hidden"></p>
+
+    <!-- Login Modal (Initially visible as the landing page) -->
+<div id="loginModal" class="modal-overlay">
+  <div class="modal-content text-center" style="background-color: #f8f0e3; padding: 2rem; border-radius: 0.75rem;">
+    <h2 class="text-2xl font-bold text-gray-800 mb-4">Login</h2>
+    <div class="space-y-4">
+      <div>
+        <label for="loginRoleSelect" class="block text-left text-gray-700 font-semibold mb-1">I am a:</label>
+        <select id="loginRoleSelect" class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <option value="patient">Patient</option>
+          <option value="doctor">Doctor</option>
+        </select>
+      </div>
+      <div>
+        <label for="loginEmail" class="block text-left text-gray-700 font-semibold mb-1">Email:</label>
+        <input type="email" id="loginEmail" placeholder="Eg: abc123@gmail.com" 
+               class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+      </div>
+      <div>
+        <label for="loginPassword" class="block text-left text-gray-700 font-semibold mb-1">Password:</label>
+        <input type="password" id="loginPassword"
+               class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+      </div>
+      <button id="loginSubmitBtn" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 px-5 rounded-lg transition duration-300 ease-in-out">
+        Login
+      </button>
+    </div>
+    <p class="text-sm text-gray-600 mt-4">
+      Don't have an account? <a href="#" id="showRegisterFromLogin" class="text-blue-600 hover:underline">Register</a>
+    </p>
+    <p id="loginMessage" class="text-red-500 text-sm mt-2 hidden"></p>
+  </div>
+</div>
+
+<!-- Register Modal -->
+<div id="registerModal" class="modal-overlay hidden">
+  <div class="modal-content text-center" style="background-color: #f8f0e3; padding: 2rem; border-radius: 0.75rem;">
+    <h2 class="text-2xl font-bold text-gray-800 mb-4">Register</h2>
+    <div class="space-y-4">
+      
+      <!-- Full Name -->
+      <div>
+        <label for="registerFullName" class="block text-left text-gray-700 font-semibold mb-1">Full Name:</label>
+        <input type="text" id="registerFullName"
+               class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+      </div>
+
+      <!-- Email -->
+      <div>
+        <label for="registerEmail" class="block text-left text-gray-700 font-semibold mb-1">Email:</label>
+        <input type="email" id="registerEmail" placeholder="Eg: abc123@gmail.com"
+               class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+      </div>
+
+      <!-- Password -->
+      <div>
+        <label for="registerPassword" class="block text-left text-gray-700 font-semibold mb-1">Password:</label>
+        <input type="password" id="registerPassword"
+               class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+        <p class="text-xs text-gray-500 text-left mt-1">Use strong passwords</p>
+      </div>
+
+      <!-- Role Selection (Radio Buttons) -->
+      <div>
+        <label class="block text-left text-gray-700 font-semibold mb-1">Register as:</label>
+        <div class="flex justify-center gap-4">
+          <label><input type="radio" name="roleSelect" value="patient" checked> Patient</label>
+          <label><input type="radio" name="roleSelect" value="doctor"> Doctor</label>
         </div>
+      </div>
+
+      <!-- Patient Fields -->
+      <div id="patientFields" class="space-y-4">
+        <div>
+          <label for="registerAge" class="block text-left text-gray-700 font-semibold mb-1">Age:</label>
+          <input type="number" id="registerAge" placeholder="e.g., 10"
+                 class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+        <div>
+          <label class="block text-left text-gray-700 font-semibold mb-1">Gender:</label>
+          <div class="flex justify-center gap-4">
+            <label><input type="radio" name="genderSelect" value="male"> Male</label>
+            <label><input type="radio" name="genderSelect" value="female"> Female</label>
+            <label><input type="radio" name="genderSelect" value="other"> Other</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Doctor Fields (Hidden initially) -->
+      <div id="doctorFields" class="space-y-4 hidden">
+        <div>
+          <label for="registerSpecialty" class="block text-left text-gray-700 font-semibold mb-1">Specialty:</label>
+          <input type="text" id="registerSpecialty" placeholder="e.g., Pediatric Speech Therapist"
+                 class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <button id="registerSubmitBtn" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 px-5 rounded-lg transition duration-300 ease-in-out">
+        Register
+      </button>
     </div>
 
-    <!-- Register Modal (Hidden by default) -->
-    <div id="registerModal" class="modal-overlay hidden">
-        <div class="modal-content text-center" style="background-color: #f8f0e3; padding: 2rem; border-radius: 0.75rem;">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">Register</h2>
-            <div class="space-y-4">
-                <div>
-                    <label for="registerFullName" class="block text-left text-gray-700 font-semibold mb-1">Full Name:</label>
-                    <input type="text" id="registerFullName" class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-                </div>
-                <div>
-                    <label for="registerEmail" class="block text-left text-gray-700 font-semibold mb-1">Email:</label>
-                    <input type="email" id="registerEmail" placeholder="Eg : abc123@gmail.com" class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-                </div>
-                <div>
-                    <label for="registerPassword" class="block text-left text-gray-700 font-semibold mb-1">Password:</label>
-                    <input type="password" id="registerPassword" class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-                    <p class="text-xs text-gray-500 text-left mt-1">Use strong passwords</p>
-                </div>
-                <button id="registerSubmitBtn" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 px-5 rounded-lg transition duration-300 ease-in-out">Register</button>
-            </div>
-            <p class="text-sm text-gray-600 mt-4">Already have an account? <a href="#" id="showLoginFromRegister" class="text-blue-600 hover:underline">Login</a></p>
-            <p id="registerMessage" class="text-red-500 text-sm mt-2 hidden"></p>
-        </div>
-    </div>
-    
+    <p class="text-sm text-gray-600 mt-4">
+      Already have an account? <a href="#" id="showLoginFromRegister" class="text-blue-600 hover:underline">Login</a>
+    </p>
+    <p id="registerMessage" class="text-red-500 text-sm mt-2 hidden"></p>
+  </div>
+</div>
+
+<!-- Main JavaScript -->
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
+
     <!-- Main JavaScript module -->
     <script type="module" src="./src/main.js"></script>
 </body>

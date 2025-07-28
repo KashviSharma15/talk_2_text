@@ -29,7 +29,6 @@ import {
     listenToPronunciationHistory, // Using listenToPronunciationHistory for patient history
     savePatientFeedback,
     listenToPatientFeedback,
-    getUserId,
     saveAssignedExercise,
     listenToAssignedExercises, // NEW: Import for listening to assigned exercises for doctor's view
     saveRubricSettings, // Import for saving rubric settings
@@ -47,23 +46,38 @@ let currentPatientHistoryData = []; // Store the latest history data for the cur
 let currentPatientFeedbackData = []; // Store the latest feedback data for the current patient
 let currentPatientName = ''; // Store the name of the patient currently being viewed
 
+import { getUserId, getCurrentUserData } from './firebaseService.js';
+
 /**
  * Loads the list of patients for the doctor's dashboard and updates dashboard stats.
  */
 export async function loadPatients() {
     console.log("loadPatients called.");
+    const doctorId = getUserId();
+    if (!doctorId) {
+        console.error("Doctor not authenticated. Cannot load patients.");
+        return;
+    }
+    console.log("Doctor authenticated:", doctorId);
+
+    // Optional: Display doctor info in UI
+    const doctorData = getCurrentUserData();
+    if (doctorData) {
+        console.log(`Logged in as Dr. ${doctorData.name}`);
+    }
+
     try {
         const patients = await fetchPatientsForDoctor();
         renderPatientList(patients, handlePatientViewClick);
-        await updateDashboardStats(); // Update dashboard stats when patients are loaded
+        await updateDashboardStats();
     } catch (error) {
         console.error("Error loading patients:", error);
-        // Optionally, display an error message in the UI
         if (DOMElements.patientList) {
             DOMElements.patientList.innerHTML = '<p class="text-red-500">Error loading patient list.</p>';
         }
     }
 }
+
 
 /**
  * Fetches and updates the dashboard statistics (active patients, today's sessions, alerts).
@@ -90,53 +104,62 @@ async function updateDashboardStats() {
  */
 function handlePatientViewClick(patientId, patientName) {
     console.log("handlePatientViewClick called for patient:", patientId, patientName);
-    currentViewedPatientId = patientId; // Store the current patient ID
-    currentPatientName = patientName; // Store the current patient name
+    currentViewedPatientId = patientId;
+    currentPatientName = patientName;
     showDoctorPatientDetailsView(patientName);
     console.log(`[DoctorManager Debug] currentViewedPatientId set to: ${currentViewedPatientId}`);
 
-    // Unsubscribe from previous patient's history listener if active
+    // Unsubscribe from previous listeners
     if (currentPatientHistoryUnsubscribe) {
         currentPatientHistoryUnsubscribe();
         console.log("Unsubscribed from previous patient history listener.");
     }
-    // Unsubscribe from previous patient's feedback listener if active
     if (currentPatientFeedbackUnsubscribe) {
         currentPatientFeedbackUnsubscribe();
         console.log("Unsubscribed from previous patient feedback listener.");
     }
-    // NEW: Unsubscribe from previous patient's assigned exercises listener if active
     if (currentPatientAssignedExercisesUnsubscribe) {
         currentPatientAssignedExercisesUnsubscribe();
         console.log("Unsubscribed from previous patient assigned exercises listener.");
     }
 
-    // Set up a new real-time listener for the selected patient's history
-    currentPatientHistoryUnsubscribe = listenToPronunciationHistory(patientId, (historyData) => {
-        console.log(`[DoctorManager Debug] Received history data for patient ${patientId}:`, historyData);
-        currentPatientHistoryData = historyData; // Store the history data
-        // Render the chart for the specific patient
-        renderDoctorPatientChart(historyData);
-        renderDoctorWordAccuracyChart(historyData); // NEW: Render word accuracy chart
+    // 🔁 1. Pronunciation History Listener
+    currentPatientHistoryUnsubscribe = listenToPronunciationHistory(currentViewedPatientId, (history) => {
+        console.log("[DoctorManager Debug] Pronunciation history snapshot received:", history);
+        currentPatientHistoryData = history; // ✅ Store for export
 
-        // Update latest session details - historyData is already sorted by desc timestamp
-        const latestSession = historyData.length > 0 ? historyData[0] : null;
-        updateDoctorLatestSessionDetails(latestSession);
+        renderDoctorPatientChart(history);
+        renderDoctorWordAccuracyChart(history);
+
+        const latestSession = history[0] || null;
+        if (latestSession) {
+            console.log("[DoctorManager Debug] Latest session data:", latestSession);
+            updateDoctorLatestSessionDetails(latestSession);
+        } else {
+            console.log("[DoctorManager Debug] No latest session available.");
+        }
     });
 
-    // Set up a new real-time listener for the selected patient's feedback
-    currentPatientFeedbackUnsubscribe = listenToPatientFeedback(patientId, (feedbackData) => {
-        console.log(`[DoctorManager Debug] Received feedback data for patient ${patientId}:`, feedbackData);
-        currentPatientFeedbackData = feedbackData; // Store the feedback data
-        renderDoctorPatientFeedbackList(feedbackData); // Render feedback in the doctor's view
+    // 🆕 2. Patient Feedback Listener
+    currentPatientFeedbackUnsubscribe = listenToPatientFeedback(currentViewedPatientId, (feedback) => {
+        console.log("[DoctorManager Debug] Feedback snapshot received:", feedback);
+        currentPatientFeedbackData = feedback; // ✅ Store for export
+
+        renderDoctorPatientFeedbackList(feedback);
     });
 
-    // NEW: Set up a real-time listener for the selected patient's assigned exercises history
-    currentPatientAssignedExercisesUnsubscribe = listenToAssignedExercises(patientId, (exercisesData) => {
-        console.log(`[DoctorManager Debug] Received assigned exercises data for patient ${patientId}:`, exercisesData);
-        renderDoctorAssignedExercisesHistory(exercisesData); // Render assigned exercises history in the doctor's view
+    // 🔁 3. Assigned Exercises Listener
+    currentPatientAssignedExercisesUnsubscribe = listenToAssignedExercises(currentViewedPatientId, (exercises) => {
+        console.log("[DoctorManager Debug] Assigned exercises snapshot received:", exercises);
+
+        if (!exercises || exercises.length === 0) {
+            console.warn("[DoctorManager Debug] No exercises assigned for patient:", currentViewedPatientId);
+        }
+
+        renderDoctorAssignedExercisesHistory(exercises);
     });
 }
+
 
 /**
  * Handles sending feedback from the doctor to the current patient.
@@ -179,42 +202,37 @@ async function handleSendFeedback() {
  * Handles the assignment of a new exercise to the current patient.
  */
 async function handleAssignExercise() {
-    console.log(`[DoctorManager Debug] handleAssignExercise called. currentViewedPatientId: ${currentViewedPatientId}`);
-    if (!currentViewedPatientId) {
-        displayAssignmentMessage('Please select a patient before assigning an exercise.', false);
-        return;
-    }
-    const selectedExercise = DOMElements.assignExerciseSelect.value;
-    const doctorId = getUserId();
+    const select = document.getElementById('assignExerciseSelect');
+    const exercise = select?.value?.trim();
 
-    if (!doctorId) {
-        console.error("Doctor ID not available. Cannot assign exercise.");
-        displayAssignmentMessage('Could not identify doctor. Please try logging in again.', false);
+    if (!exercise) {
+        alert("Please select an exercise to assign.");
         return;
     }
 
     try {
-        await saveAssignedExercise(currentViewedPatientId, selectedExercise, doctorId);
-        displayAssignmentMessage(`Exercise "${selectedExercise}" assigned to Patient ${currentViewedPatientId.substring(0, 6)}!`, true);
-    } catch (error) {
-        console.error("Error assigning exercise:", error);
-        displayAssignmentMessage('Failed to assign exercise. Please try again.', false);
+        console.log("[DoctorManager Debug] Assigning exercise to:", currentViewedPatientId);
+        await saveAssignedExercise(currentViewedPatientId, exercise, getUserId());
+        console.log("[DoctorManager Debug] Exercise successfully assigned!");
+        select.value = ''; // Clear selected item
+        displayAssignmentMessage("Exercise assigned successfully!", true);
+    } catch (err) {
+        console.error("[DoctorManager Error] Failed to assign exercise:", err);
+        displayAssignmentMessage("Failed to assign exercise.", false);
     }
 }
 
 /**
  * Handles the export report action.
  */
-async function handleExportReport() {
+function handleExportReport() {
     console.log(`[DoctorManager Debug] handleExportReport called. currentViewedPatientId: ${currentViewedPatientId}`);
     if (!currentViewedPatientId) {
         displayExportReportMessage('Please select a patient to export a report.', false);
         return;
     }
-    // For now, assuming currentPatientHistoryData and currentPatientFeedbackData are up-to-date
-    // (They are kept updated by the listeners in handlePatientViewClick)
 
-    if (currentPatientHistoryData.length === 0 && currentPatientFeedbackData.length === 0) {
+    if (!currentPatientHistoryData || !currentPatientFeedbackData) {
         displayExportReportMessage('No data available for this patient to generate a report.', false);
         return;
     }
@@ -222,13 +240,10 @@ async function handleExportReport() {
     displayExportReportMessage('Generating report...', true);
 
     try {
-        // Ensure jsPDF is available globally
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
 
-        let yOffset = 10; // Initial Y position for content
-
-        // Add Title
+        let yOffset = 10;
         doc.setFontSize(22);
         doc.text(`Patient Report: ${currentPatientName}`, 10, yOffset);
         yOffset += 10;
@@ -236,29 +251,24 @@ async function handleExportReport() {
         doc.text(`Patient ID: ${currentViewedPatientId}`, 10, yOffset);
         yOffset += 15;
 
-        // --- Progress Chart Inclusion ---
         const progressChartCanvas = DOMElements.doctorPatientChartCanvas;
         if (progressChartCanvas) {
             const imgData = progressChartCanvas.toDataURL('image/png');
-            const imgWidth = 180; // Standard width for A4 page, adjust as needed
-            const imgHeight = (progressChartCanvas.height * imgWidth) / progressChartCanvas.width; // Maintain aspect ratio
-
-            // Check if adding the chart will exceed page height, add new page if necessary
+            const imgWidth = 180;
+            const imgHeight = (progressChartCanvas.height * imgWidth) / progressChartCanvas.width;
             if (yOffset + imgHeight + 10 > doc.internal.pageSize.height) {
                 doc.addPage();
                 yOffset = 10;
             }
             doc.addImage(imgData, 'PNG', 10, yOffset, imgWidth, imgHeight);
-            yOffset += imgHeight + 10; // Move yOffset down after adding the image
+            yOffset += imgHeight + 10;
         }
 
-        // --- Most Challenging Words Chart Inclusion ---
         const wordAccuracyChartCanvas = DOMElements.doctorWordAccuracyChart;
         if (wordAccuracyChartCanvas) {
             const imgDataWordAccuracy = wordAccuracyChartCanvas.toDataURL('image/png');
             const imgWidthWordAccuracy = 180;
             const imgHeightWordAccuracy = (wordAccuracyChartCanvas.height * imgWidthWordAccuracy) / wordAccuracyChartCanvas.width;
-
             if (yOffset + imgHeightWordAccuracy + 10 > doc.internal.pageSize.height) {
                 doc.addPage();
                 yOffset = 10;
@@ -266,9 +276,7 @@ async function handleExportReport() {
             doc.addImage(imgDataWordAccuracy, 'PNG', 10, yOffset, imgWidthWordAccuracy, imgHeightWordAccuracy);
             yOffset += imgHeightWordAccuracy + 10;
         }
-        // ------------------------------------------
 
-        // Add Patient History
         doc.setFontSize(16);
         doc.text('Pronunciation History', 10, yOffset);
         yOffset += 10;
@@ -276,8 +284,8 @@ async function handleExportReport() {
         if (currentPatientHistoryData.length > 0) {
             currentPatientHistoryData.forEach((record, index) => {
                 const date = record.timestamp ? new Date(record.timestamp.toDate()).toLocaleDateString() : 'N/A';
-                const line = `Session ${index + 1}: "${record.sentence}" - Score: ${record.overallScore}% (${date})`;
-                if (yOffset + 5 > doc.internal.pageSize.height - 10) { // Check for page break
+                const line = `Session ${index + 1}: \"${record.sentence}\" - Score: ${record.overallScore}% (${date})`;
+                if (yOffset + 5 > doc.internal.pageSize.height - 10) {
                     doc.addPage();
                     yOffset = 10;
                 }
@@ -290,7 +298,6 @@ async function handleExportReport() {
         }
         yOffset += 10;
 
-        // Add Patient Feedback
         doc.setFontSize(16);
         doc.text('Doctor Feedback History', 10, yOffset);
         yOffset += 10;
@@ -300,9 +307,9 @@ async function handleExportReport() {
                 const date = feedback.timestamp ? new Date(feedback.timestamp.toDate()).toLocaleDateString() : 'N/A';
                 const doctorIdSnippet = feedback.doctorId ? feedback.doctorId.substring(0, 6) : 'N/A';
                 const line1 = `Feedback ${index + 1} from Doctor ${doctorIdSnippet} (${date}):`;
-                const line2 = `   "${feedback.feedbackText}"`;
+                const line2 = `   \"${feedback.feedbackText}\"`;
 
-                if (yOffset + 12 > doc.internal.pageSize.height - 10) { // Check for page break
+                if (yOffset + 12 > doc.internal.pageSize.height - 10) {
                     doc.addPage();
                     yOffset = 10;
                 }
@@ -317,7 +324,6 @@ async function handleExportReport() {
         }
         yOffset += 10;
 
-        // Save the PDF
         doc.save(`Patient_Report_${currentPatientName.replace(/\s/g, '_')}_${currentViewedPatientId.substring(0, 6)}.pdf`);
         displayExportReportMessage('Report generated successfully!', true);
 
@@ -327,31 +333,36 @@ async function handleExportReport() {
     }
 }
 
+
 /**
  * Handles the customize scoring rubric action.
  */
 async function handleCustomizeScoringRubric() {
     console.log(`[DoctorManager Debug] handleCustomizeScoringRubric called.`);
-    showRubricModal(); // Show the rubric modal
-    // Load existing settings when the modal opens
+    showRubricModal();
+
     const doctorId = getUserId();
     if (doctorId) {
         const settings = await getRubricSettings(doctorId);
         if (settings) {
-            DOMElements.mispronunciationWeight.value = settings.mispronunciationWeight || 50;
-            DOMElements.omissionWeight.value = settings.omissionWeight || 70;
-            DOMElements.insertionWeight.value = settings.insertionWeight || 30;
-            // Removed clarityThreshold as it's not supported by in-browser Whisper
-            // DOMElements.clarityThreshold.value = settings.clarityThreshold || 75;
+            DOMElements.mispronunciationWeight.value = settings.mispronunciationWeight ?? 50;
+            DOMElements.omissionWeight.value = settings.omissionWeight ?? 70;
+            DOMElements.insertionWeight.value = settings.insertionWeight ?? 30;
+        } else {
+            console.warn("No custom rubric settings found for doctor:", doctorId);
+            DOMElements.mispronunciationWeight.value = 50;
+            DOMElements.omissionWeight.value = 70;
+            DOMElements.insertionWeight.value = 30;
         }
+    } else {
+        console.error("Doctor ID not found");
     }
-    // Update display values initially
+
     updateRangeValueDisplay(DOMElements.mispronunciationWeight, DOMElements.mispronunciationWeightValue);
     updateRangeValueDisplay(DOMElements.omissionWeight, DOMElements.omissionWeightValue);
     updateRangeValueDisplay(DOMElements.insertionWeight, DOMElements.insertionWeightValue);
-    // Removed clarityThreshold display update
-    // updateRangeValueDisplay(DOMElements.clarityThreshold, DOMElements.clarityThresholdValue);
 }
+
 
 /**
  * Handles saving the customized rubric settings.
@@ -375,7 +386,7 @@ async function handleSaveRubric() {
         omissionWeight: parseInt(DOMElements.omissionWeight.value),
         insertionWeight: parseInt(DOMElements.insertionWeight.value),
         // Removed clarityThreshold from settings to be saved
-        // clarityThreshold: parseInt(DOMElements.clarityThreshold.value)
+        clarityThreshold: parseInt(DOMElements.clarityThreshold.value)
     };
 
     try {
@@ -404,96 +415,65 @@ async function handleSaveRubric() {
 /**
  * Sets up doctor-specific event listeners for navigation and actions.
  */
+// Rewritten setupDoctorListeners using event delegation
+
+let doctorListenersInitialized = false;
+
 export function setupDoctorListeners() {
-    console.log("setupDoctorListeners called.");
-    // Remove existing listeners first to prevent duplicates
-    // Check if elements exist before removing listeners
-    if (DOMElements.backToPatientListBtn) {
-        DOMElements.backToPatientListBtn.removeEventListener('click', handleBackToPatientListClick);
-    }
-    if (DOMElements.sendFeedbackBtn) {
-        DOMElements.sendFeedbackBtn.removeEventListener('click', handleSendFeedback);
-    }
-    if (DOMElements.assignExerciseBtn) {
-        DOMElements.assignExerciseBtn.removeEventListener('click', handleAssignExercise);
-    }
-    if (DOMElements.exportReportBtn) {
-        DOMElements.exportReportBtn.removeEventListener('click', handleExportReport);
-    }
-    if (DOMElements.customizeRubricBtn) {
-        DOMElements.customizeRubricBtn.removeEventListener('click', handleCustomizeScoringRubric);
-    }
-    if (DOMElements.cancelRubricBtn) {
-        DOMElements.cancelRubricBtn.removeEventListener('click', hideRubricModal);
-    }
-    if (DOMElements.saveRubricBtn) {
-        DOMElements.saveRubricBtn.removeEventListener('click', handleSaveRubric);
-    }
-    // Generic handler for all range inputs (needs to be defined for removal)
-    function handleRubricRangeInput(event) {
-        const inputElement = event.target;
-        const valueElementId = inputElement.id + 'Value';
-        const valueElement = DOMElements[valueElementId]; // Access from DOMElements map
-        updateRangeValueDisplay(inputElement, valueElement);
-    }
-    if (DOMElements.mispronunciationWeight) {
-        DOMElements.mispronunciationWeight.removeEventListener('input', handleRubricRangeInput);
-    }
-    if (DOMElements.omissionWeight) {
-        DOMElements.omissionWeight.removeEventListener('input', handleRubricRangeInput);
-    }
-    if (DOMElements.insertionWeight) {
-        DOMElements.insertionWeight.removeEventListener('input', handleRubricRangeInput);
-    }
-    // Removed clarityThreshold listener
-    if (DOMElements.clarityThreshold) {
-        DOMElements.clarityThreshold.removeEventListener('input', handleRubricRangeInput);
-    }
+    if (doctorListenersInitialized) return;
+    doctorListenersInitialized = true;
+    console.log("[DoctorManager Debug] Setting up delegated listeners");
 
+    document.addEventListener('click', (e) => {
+        const target = e.target;
 
-    // Add new listeners
-    if (DOMElements.backToPatientListBtn) {
-        DOMElements.backToPatientListBtn.addEventListener('click', handleBackToPatientListClick);
-    }
+        if (target.matches('#assignExerciseBtn')) {
+            console.log("[DoctorManager Debug] Assign button clicked");
+            handleAssignExercise();
+        }
 
-    if (DOMElements.sendFeedbackBtn) {
-        DOMElements.sendFeedbackBtn.addEventListener('click', handleSendFeedback);
-    } else {
-        console.warn("Send Feedback button not found in DOM. Please ensure its ID is 'sendFeedbackBtn'.");
-    }
+        if (target.matches('#exportReportBtn')) {
+            console.log("[DoctorManager Debug] Export PDF button clicked");
+            handleExportReport();
+        }
 
-    if (DOMElements.assignExerciseBtn) {
-        DOMElements.assignExerciseBtn.addEventListener('click', handleAssignExercise);
-    }
-    if (DOMElements.exportReportBtn) {
-        DOMElements.exportReportBtn.addEventListener('click', handleExportReport);
-    }
-    if (DOMElements.customizeRubricBtn) {
-        DOMElements.customizeRubricBtn.addEventListener('click', handleCustomizeScoringRubric);
-    }
+        if (target.matches('#customizeRubricBtn')) {
+            console.log("[DoctorManager Debug] Customize rubric clicked");
+            handleCustomizeScoringRubric();
+        }
 
-    // Rubric Modal Listeners
-    if (DOMElements.cancelRubricBtn) {
-        DOMElements.cancelRubricBtn.addEventListener('click', hideRubricModal);
-    }
-    if (DOMElements.saveRubricBtn) {
-        DOMElements.saveRubricBtn.addEventListener('click', handleSaveRubric);
-    }
-    // Re-add generic handler for all range inputs
-    if (DOMElements.mispronunciationWeight) {
-        DOMElements.mispronunciationWeight.addEventListener('input', handleRubricRangeInput);
-    }
-    if (DOMElements.omissionWeight) {
-        DOMElements.omissionWeight.addEventListener('input', handleRubricRangeInput);
-    }
-    if (DOMElements.insertionWeight) {
-        DOMElements.insertionWeight.addEventListener('input', handleRubricRangeInput);
-    }
-    // Removed clarityThreshold listener
-    if (DOMElements.clarityThreshold) {
-        DOMElements.clarityThreshold.addEventListener('input', handleRubricRangeInput);
-    }
+        if (target.matches('#cancelRubricBtn')) {
+            hideRubricModal();
+        }
+
+        if (target.matches('#saveRubricBtn')) {
+            handleSaveRubric();
+        }
+    });
+
+    // Rubric slider updates using event delegation
+    document.addEventListener('input', (e) => {
+        const input = e.target;
+        if (input.matches('#mispronunciationWeight, #omissionWeight, #insertionWeight, #clarityThreshold')) {
+            const valueElementId = input.id + 'Value';
+            const valueElement = document.getElementById(valueElementId);
+            if (valueElement) {
+                updateRangeValueDisplay(input, valueElement);
+            }
+        }
+    });
+
+    // Back button and feedback button
+    document.addEventListener('click', (e) => {
+        if (e.target.matches('#backToPatientListBtn')) {
+            handleBackToPatientListClick();
+        }
+        if (e.target.matches('#sendFeedbackBtn')) {
+            handleSendFeedback();
+        }
+    });
 }
+
 
 /**
  * Handles the click event for the "Back to Patient List" button.
