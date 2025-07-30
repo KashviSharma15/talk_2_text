@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech Therapy Platform</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Poppins Font (consistent with homepage) -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Chart.js CDN for graphs (loaded globally, no import needed in JS modules) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jsPDF CDN for PDF generation (loaded globally) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* Base font for the body - Poppins for consistency */
+        body {
+            font-family: 'Poppins', sans-serif;
+            position: relative; /* Needed for confetti positioning */
+            background: radial-gradient(at 80% 20%, #e0f7fa, transparent 50%), /* Lighter blue */
+                        radial-gradient(at 20% 90%, #f3e5f5, transparent 50%), /* Lighter purple */
+                        linear-gradient(to bottom right, #bbdefb, #e3f2fd); /* Light blue to very light blue */
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem; /* Reduced overall padding for body */
+            box-sizing: border-box;
+            line-height: 1.6; /* Consistent line height */
+            color: #333; /* Default text color */
+            overflow-x: hidden; /* Prevent horizontal scroll */
+        }
+        /* Loader spinner styles */
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Text highlighting for analysis results */
+        .highlight-correct { color: #22c55e; } /* Green for correctly pronounced words */
+        .highlight-mispronunciation { color: #ef4444; text-decoration: underline; text-decoration-style: wavy; } /* Red and wavy underline for mispronounced words */
+        .highlight-omission { color: #a1a1aa; text-decoration: line-through; } /* Gray and strikethrough for omitted words */
+        .highlight-insertion { color: #3b82f6; font-weight: bold; } /* Blue and bold for inserted words */
+        .highlight-clarity { color: #f97316; font-style: italic; text-decoration: underline dotted; } /* Orange, italic, and dotted underline for unclear words */
+
+        /* Flash animations for feedback */
+        @keyframes flash-green {
+            0%, 100% { background-color: #dcfce7; border-color: #22c55e; } /* Light green background, green border */
+            50% { background-color: white; border-color: #d1d5db; } /* White background, default border */
+        }
+        .flash-correct { animation: flash-green 1.5s ease-out; } /* Apply green flash animation */
+        @keyframes flash-red {
+            0%, 100% { background-color: #fee2e2; border-color: #ef4444; } /* Light red background, red border */
+            50% { background-color: white; border-color: #d1d5db; } /* White background, default border */
+        }
+        .flash-incorrect { animation: flash-red 1.5s ease-out; } /* Apply red flash animation */
+
+        /* Utility class to hide elements */
+        .hidden { display: none; }
+
+        /* Confetti Styles for celebratory animations */
+        #confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Allows clicks to pass through */
+            overflow: hidden;
+            z-index: 1000; /* Ensures confetti is on top */
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f00; /* Default color, overridden by JS */
+            opacity: 0.7;
+            animation: confetti-fall 3s linear forwards; /* Confetti falling animation */
+        }
+        @keyframes confetti-fall {
+            0% { transform: translateY(-10vh) rotate(0deg); } /* Starts above viewport */
+            100% { transform: translateY(110vh) rotate(720deg); } /* Falls below viewport, rotates */
+        }
+
+        /* Modal overlay styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); /* Slightly darker overlay */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000; /* Above confetti */
+        }
+        .modal-content {
+            background-image: linear-gradient(to bottom right, #f0f9ff, #e0f2fe); /* Soft light blue gradient */
+            padding: 1.25rem; /* Adjusted padding for optimal fit */
+            border-radius: 1.75rem; /* Consistent rounded corners */
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3), 0 10px 15px -3px rgba(0, 0, 0, 0.1); /* Deeper shadow */
+            width: 90%;
+            max-width: 480px; /* Consistent max width */
+            position: relative;
+            border: 1px solid #bfdbfe; /* Light blue border */
+        }
+
+        /* Consistent button styling for primary actions */
+        .btn-primary {
+            background-color: #6366F1; /* Indigo-500 */
+            color: white;
+            font-weight: 600; /* font-semibold */
+            padding: 0.75rem 1.25rem; /* py-3 px-5 */
+            border-radius: 0.75rem; /* rounded-lg */
+            transition: all 0.3s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary:hover {
+            background-color: #4F46E5; /* Indigo-600 */
+            transform: translateY(-2px);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Consistent button styling for secondary actions (e.g., Logout) */
+        .btn-secondary {
+            background-color: #e5e7eb; /* Gray-200 */
+            color: #4b5563; /* Gray-700 */
+            font-weight: 600; /* font-semibold */
+            padding: 0.5rem 1rem; /* py-2 px-4 */
+            border-radius: 0.5rem; /* rounded-lg */
+            transition: all 0.3s ease-in-out;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .btn-secondary:hover {
+            background-color: #d1d5db; /* Gray-300 */
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Input field styling */
+        input[type="email"],
+        input[type="password"],
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.75rem; /* p-3 */
+            border: 1px solid #d1d5db; /* border-gray-300 */
+            border-radius: 0.5rem; /* rounded-lg */
+            background-color: white;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        input[type="email"]:focus,
+        input[type="password"]:focus,
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus,
+        textarea:focus {
+            border-color: #60a5fa; /* blue-400 */
+            box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.5), 0 0 0 4px rgba(96, 165, 250, 0.2); /* Added subtle outer ring */
+        }
+
+        /* Custom radio button styling */
+        .form-radio {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            display: inline-block;
+            vertical-align: middle;
+            background-origin: border-box;
+            user-select: none;
+            flex-shrink: 0;
+            border-radius: 100%;
+            height: 1.25em;
+            width: 1.25em;
+            border: 2px solid #a1a1aa; /* Gray-400 */
+            transition: all 0.2s ease-in-out;
+        }
+        .form-radio:checked {
+            background-color: #3b82f6; /* Blue-500 */
+            border-color: #3b82f6;
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='8' cy='8' r='3'/%3e%3c/svg%3e");
+            background-size: 100% 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        .form-radio:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.4); /* Blue-500 with transparency */
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <!-- Confetti container for celebratory effects -->
+    <div id="confetti-container"></div>
+
+    <!-- Patient Interface: Hidden by default, shown when "Patient" is selected -->
+    <div id="patientInterface" class="hidden max-w-4xl w-full bg-white rounded-3xl shadow-2xl p-8 space-y-6">
+        <div class="flex justify-between items-center pb-4 border-b border-gray-200">
+            <h1 class="text-3xl font-bold text-gray-800">Patient Portal</h1>
+            <button id="patientLogoutBtn" class="btn-secondary">Log Out</button>
+        </div>
+
+        <!-- Patient Navigation Tabs -->
+        <div class="flex justify-center border-b border-gray-200 mb-6">
+            <button data-view="patientDashboard" class="patient-nav-btn font-semibold py-3 px-5 border-b-2 border-blue-600 text-blue-600 hover:text-blue-700 transition-colors duration-200">Dashboard</button>
+            <button data-view="patientPractice" class="patient-nav-btn font-semibold py-3 px-5 border-b-2 border-transparent text-gray-600 hover:text-blue-700 transition-colors duration-200">Practice</button>
+            <button data-view="patientHistory" class="patient-nav-btn font-semibold py-3 px-5 border-b-2 border-transparent text-gray-600 hover:text-blue-700 transition-colors duration-200">Progress</button>
+            <button data-view="patientFeedback" class="patient-nav-btn font-semibold py-3 px-5 border-b-2 border-transparent text-gray-600 hover:text-blue-700 transition-colors duration-200">Feedback</button>
+        </div>
+
+        <!-- Patient Views (Dashboard, Practice, History, Feedback) -->
+        <div id="patientDashboard" class="patient-view p-6 bg-gray-50 rounded-xl border border-gray-200">
+            <h2 class="text-xl font-bold text-gray-700 mb-4">Your Dashboard</h2>
+            <div class="grid md:grid-cols-3 gap-4 text-center">
+                <div class="bg-blue-100 p-4 rounded-lg border border-blue-200">
+                    <p class="text-sm text-blue-800 font-semibold">Daily Goal</p>
+                    <p id="dailyGoalSentences" class="text-2xl font-bold text-blue-900">Loading...</p>
+                </div>
+                <div class="bg-green-100 p-4 rounded-lg border border-green-200">
+                    <p class="text-sm text-green-800 font-semibold">Practice Streak</p>
+                    <p id="practiceStreakDays" class="text-2xl font-bold text-green-900">Loading...</p>
+                </div>
+                <div class="bg-yellow-100 p-4 rounded-lg border border-yellow-200">
+                    <p class="text-sm text-yellow-800 font-semibold">New Feedback</p>
+                    <p id="newFeedbackCount" class="text-2xl font-bold text-yellow-900">Loading...</p>
+                </div>
+            </div>
+            <div class="mt-6 p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+                <h3 class="font-semibold mb-2 text-gray-700">Assigned Exercises</h3>
+                <div id="patientAssignedExercises" class="list-disc list-inside space-y-1 text-gray-600">
+                    <p class="text-gray-500">No exercises assigned yet.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="patientPractice" class="patient-view hidden p-6 bg-gray-50 rounded-xl border border-gray-200">
+            <!-- Practice Session Section -->
+            <div id="practiceSessionSection" class="p-6 mb-6 bg-white rounded-lg shadow-sm border border-gray-200">
+                <p class="text-lg font-medium text-gray-700 mb-4">Sentence to Practice:</p>
+                <p id="currentSentence" class="text-2xl font-semibold text-gray-900 text-center mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200"></p>
+                <!-- Waveform canvas for audio visualization -->
+                <canvas id="waveform" class="hidden w-full h-24 bg-gray-200 rounded-lg mb-4"></canvas>
+                <div class="flex justify-center items-center space-x-4 h-16">
+                    <!-- Record button (mic icon) -->
+                    <button id="recordButton" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold p-4 rounded-full shadow-lg transition duration-300 ease-in-out flex items-center justify-center transform hover:scale-105">
+                        <i class="fas fa-microphone text-3xl"></i>
+                    </button>
+                    <!-- Stop button (hidden by default) -->
+                    <button id="stopButton" class="hidden bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg shadow-lg transition duration-300 ease-in-out flex items-center space-x-2 transform hover:scale-105">
+                        <i class="fas fa-stop text-xl"></i>
+                        <span>Stop Recording</span>
+                    </button>
+                </div>
+                <p id="recordingStatus" class="text-center text-sm text-gray-500 mt-3"></p>
+            </div>
+            <!-- Loader for speech analysis -->
+            <div id="loader" class="flex flex-col justify-center items-center hidden py-8">
+                <div class="loader"></div>
+                <p class="ml-4 text-gray-600 text-lg mt-4">Analyzing your speech...</p>
+            </div>
+
+            <!-- Results Content: Hidden by default, shown after analysis -->
+            <div id="resultsContent" class="hidden p-6 bg-white rounded-lg shadow-sm border border-gray-200">
+                <div id="congratulations" class="hidden text-center mb-4">
+                    <p class="text-2xl font-bold text-green-600">🎉 Good Job! 🎉</p>
+                </div>
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Analysis Results:</h2>
+                <div class="mb-6">
+                    <p class="text-lg font-medium text-gray-700 mb-2">Overall Score:</p>
+                    <div class="w-full bg-gray-200 rounded-full h-4 relative">
+                        <div id="progressBar" class="bg-green-500 h-4 rounded-full transition-all duration-500 ease-out" style="width: 0%;"></div>
+                        <span id="overallScore" class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">0%</span>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <p class="text-lg font-medium text-gray-700 mb-2">Detailed Breakdown:</p>
+                    <div id="detailedBreakdown" class="text-lg leading-relaxed text-gray-800 bg-gray-50 p-4 rounded-md border border-gray-200 min-h-[80px]"></div>
+                </div>
+                <!-- Audio playback for recorded speech -->
+                <div id="audioPlayback" class="hidden mt-4">
+                    <h4 class="font-semibold text-gray-700 mb-2">Listen to your recording:</h4>
+                    <audio id="recordedAudio" controls class="w-full rounded-lg"></audio>
+                </div>
+                <!-- Section to practice mispronounced words -->
+                <div id="practiceSection" class="hidden mb-6 mt-6">
+                    <h3 class="text-lg font-medium text-gray-700 mb-3">Practice Mispronounced Words:</h3>
+                    <div id="practiceWordsContainer" class="flex flex-wrap gap-3"></div>
+                </div>
+                <div class="flex justify-end mt-6">
+                    <button id="nextSentenceBtn" class="btn-primary bg-green-600 hover:bg-green-700 hidden">Next Sentence</button>
+                </div>
+            </div>
+            <div id="restartSection" class="flex justify-center mt-8 space-x-4">
+                <button id="startNewSessionBtn" class="btn-primary bg-purple-600 hover:bg-purple-700">Start New Session</button>
+            </div>
+        </div>
+
+        <div id="patientHistory" class="patient-view hidden p-6 bg-gray-50 rounded-xl border border-gray-200">
+            <h2 class="text-xl font-bold text-gray-700 mb-4">Your Progress</h2>
+            <p id="userIdDisplay" class="text-sm text-gray-500 text-center mb-4">User ID: Loading...</p>
+            <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm mb-6">
+                <h3 class="font-semibold mb-2 text-gray-700">Pronunciation Accuracy Over Time</h3>
+                <canvas id="progressChart" class="w-full h-full"></canvas>
+            </div>
+            <!-- Daily Practice Sessions Chart -->
+            <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm mb-6">
+                <h3 class="font-semibold mb-2 text-gray-700">Daily Practice Sessions</h3>
+                <canvas id="dailySessionsChart" class="w-full h-full"></canvas>
+            </div>
+            <div id="historyList" class="space-y-3"></div>
+        </div>
+
+        <div id="patientFeedback" class="patient-view hidden p-6 bg-gray-50 rounded-xl border border-gray-200">
+            <h2 class="text-xl font-bold text-gray-700 mb-4">Therapist Feedback</h2>
+            <div id="patientFeedbackList" class="space-y-4 p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+                <!-- Feedback entries will be dynamically inserted here by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Doctor Interface -->
+    <div id="doctorInterface" class="hidden max-w-6xl w-full bg-white rounded-3xl shadow-2xl p-8 space-y-6">
+        <div class="flex justify-between items-center pb-4 border-b border-gray-200">
+            <h1 class="text-3xl font-bold text-gray-800">Therapist Dashboard</h1>
+            <button id="doctorLogoutBtn" class="btn-secondary">Log Out</button>
+        </div>
+
+        <!-- Doctor Dashboard View -->
+        <div id="doctorDashboardView" class="p-6 bg-gray-50 rounded-xl border border-gray-200">
+            <h2 class="text-xl font-bold text-gray-700 mb-4">Dashboard Overview</h2>
+            <div class="grid md:grid-cols-3 gap-4 text-center">
+                <div class="bg-blue-100 p-4 rounded-lg border border-blue-200">
+                    <p class="text-sm text-blue-800 font-semibold">Active Patients</p>
+                    <p id="activePatientsCount" class="text-3xl font-bold text-blue-900">Loading...</p>
+                </div>
+                <div class="bg-green-100 p-4 rounded-lg border border-green-200">
+                    <p class="text-sm text-green-800 font-semibold">Today's Sessions</p>
+                    <p id="todaysSessionsCount" class="text-3xl font-bold text-green-900">Loading...</p>
+                </div>
+                <div class="bg-red-100 p-4 rounded-lg border border-red-200">
+                    <p class="text-sm text-red-800 font-semibold">Alerts</p>
+                    <p id="alertsCount" class="text-3xl font-bold text-red-900">Loading...</p>
+                </div>
+            </div>
+
+            <div class="mt-6 p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+                <h2 class="text-xl font-bold text-gray-700 mb-4">Patient Management</h2>
+                <input type="text" id="patientSearchInput" placeholder="Search patients..." class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 mb-4">
+                <div id="patientList" class="space-y-2">
+                    <!-- Patient items will be dynamically inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Patient Details View (for doctors) -->
+        <div id="patientDetailsView" class="hidden p-6 bg-gray-50 rounded-xl border border-gray-200">
+            <button id="backToPatientListBtn" class="btn-secondary mb-4">&larr; Back to Patient List</button>
+            <h2 id="patientDetailsName" class="text-2xl font-bold text-gray-800 mb-4"></h2>
+
+            <div class="grid lg:grid-cols-2 gap-6">
+                <!-- Left Column: Assessment & Progress & Admin Tools -->
+                <div class="space-y-6">
+                    <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <h3 class="text-lg font-semibold mb-2 text-gray-700">Assessment Tools</h3>
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <h4 class="font-bold text-gray-800">Latest Practice Session</h4>
+                            <p id="doctorLatestSessionSentence" class="text-sm text-gray-600">Sentence: Loading...</p>
+                            <p id="doctorLatestSessionScore" class="text-sm text-gray-600">Score: Loading...</p>
+                            <audio id="doctorLatestSessionAudio" controls class="w-full mt-2 hidden rounded-lg"></audio>
+                            <!-- Feedback input for doctor -->
+                            <h4 class="font-semibold text-gray-700 mt-4 mb-2">Send Feedback:</h4>
+                            <textarea id="doctorFeedbackTextarea" placeholder="Write your feedback here..." class="w-full p-2 border rounded-lg min-h-[100px]"></textarea>
+                            <button id="sendFeedbackBtn" class="btn-primary mt-2 bg-blue-600 hover:bg-blue-700">Send Feedback</button>
+                        </div>
+                    </div>
+                    <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <h3 class="text-lg font-semibold mb-2 text-gray-700">Progress Tracking</h3>
+                        <div>
+                            <canvas id="doctorPatientChart" class="w-full h-full"></canvas>
+                        </div>
+                    </div>
+                    <!-- Most Challenging Words Chart -->
+                    <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <h3 class="font-semibold mb-2 text-gray-700">Most Challenging Words</h3>
+                        <div>
+                            <canvas id="doctorWordAccuracyChart" class="w-full h-full"></canvas>
+                        </div>
+                    </div>
+                    <!-- Admin Tools -->
+                    <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <h3 class="text-lg font-semibold mb-2 text-gray-700">Admin Tools</h3>
+                        <div class="bg-gray-50 p-4 rounded-lg space-y-3 border border-gray-200">
+                            <button id="exportReportBtn" class="btn-primary bg-purple-600 hover:bg-purple-700 w-full">Export Report (PDF)</button>
+                            <p id="exportReportMessage" class="mt-1 text-sm font-medium hidden text-center"></p>
+                            <button id="customizeRubricBtn" class="btn-primary bg-purple-600 hover:bg-purple-700 w-full">Customize Scoring Rubric</button>
+                            <p id="customizeRubricMessage" class="mt-1 text-sm font-medium hidden text-center"></p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Right Column: Patient Feedback History & Session Management -->
+                <div class="space-y-6">
+                    <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <h3 class="text-lg font-semibold mb-2 text-gray-700">Patient Feedback History</h3>
+                        <div id="doctorPatientFeedbackHistory" class="bg-gray-50 p-4 rounded-lg space-y-3 min-h-[150px] border border-gray-200">
+                            <!-- Patient feedback history will be loaded here -->
+                        </div>
+                    </div>
+                    <div class="p-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <h3 class="text-lg font-semibold mb-2 text-gray-700">Session Management</h3>
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <h4 class="font-bold text-gray-800">Assigned Exercises History</h4>
+                            <div id="doctorAssignedExercisesHistory" class="list-disc list-inside space-y-1 mb-4 text-gray-600">
+                                <!-- Doctor's view of assigned exercises history will be loaded here -->
+                            </div>
+                            <h4 class="font-bold text-gray-800">Assign New Exercise</h4>
+                            <select id="assignExerciseSelect" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 mt-2">
+                                <option value="R-sound practice">R-sound practice</option>
+                                <option value="S-sound practice">S-sound practice</option>
+                                <option value="Fluency reading">Fluency reading</option>
+                            </select>
+                            <button id="assignExerciseBtn" class="btn-primary bg-green-600 hover:bg-green-700 mt-3">Assign</button>
+                            <p id="assignmentMessage" class="mt-2 text-sm font-medium hidden text-center"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rubric Customization Modal -->
+    <div id="customizeRubricModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Customize Scoring Rubric</h2>
+            <div class="space-y-4">
+                <div>
+                    <label for="mispronunciationWeight" class="block text-sm font-medium text-gray-700">Mispronunciation Weight (%):</label>
+                    <input type="range" id="mispronunciationWeight" min="0" max="100" value="50" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                    <span id="mispronunciationWeightValue" class="text-sm text-gray-600">50%</span>
+                </div>
+                <div>
+                    <label for="omissionWeight" class="block text-sm font-medium text-gray-700">Omission Weight (%):</label>
+                    <input type="range" id="omissionWeight" min="0" max="100" value="70" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                    <span id="omissionWeightValue" class="text-sm text-gray-600">70%</span>
+                </div>
+                <div>
+                    <label for="insertionWeight" class="block text-sm font-medium text-gray-700">Insertion Weight (%):</label>
+                    <input type="range" id="insertionWeight" min="0" max="100" value="30" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                    <span id="insertionWeightValue" class="text-sm text-gray-600">30%</span>
+                </div>
+                <div>
+                    <label for="clarityThreshold" class="block text-sm font-medium text-gray-700">Clarity Threshold (% Confidence):</label>
+                    <input type="range" id="clarityThreshold" min="0" max="100" value="75" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-blue-600">
+                    <span id="clarityThresholdValue" class="text-sm text-gray-600">75%</span>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3 mt-6">
+                <button id="cancelRubricBtn" class="btn-secondary">Cancel</button>
+                <button id="saveRubricBtn" class="btn-primary bg-blue-600 hover:bg-blue-700">Save Rubric</button>
+            </div>
+            <p id="rubricMessage" class="mt-4 text-sm font-medium hidden text-center"></p>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal-overlay">
+      <div class="modal-content text-center">
+        <!-- Logo for consistency with homepage -->
+        <a href="#" class="flex items-center justify-center space-x-2 text-3xl font-extrabold text-gray-800 mb-6">
+            <svg class="w-9 h-9 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path fill="#3B82F6" d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+            <span class="text-blue-600">Talk</span><span class="text-indigo-600">To Text</span>
+        </a>
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">Login to Your Account</h2>
+        <div class="space-y-4">
+          <div>
+            <label for="loginEmail" class="block text-left text-gray-700 font-semibold mb-1">Email:</label>
+            <input type="email" id="loginEmail" placeholder="e.g., your.email@example.com" 
+                   class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+          </div>
+          <div>
+            <label for="loginPassword" class="block text-left text-gray-700 font-semibold mb-1">Password:</label>
+            <input type="password" id="loginPassword"
+                   class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+          </div>
+          <button id="loginSubmitBtn" class="btn-primary w-full">
+            Login
+          </button>
+        </div>
+        <p class="text-sm text-gray-600 mt-6">
+          Don't have an account? <a href="#" id="showRegisterFromLogin" class="text-blue-600 hover:underline font-medium">Register</a>
+        </p>
+        <p id="loginMessage" class="text-red-500 text-sm mt-2 hidden"></p>
+      </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div id="registerModal" class="modal-overlay hidden">
+      <div class="modal-content text-center">
+        <!-- Logo for consistency with homepage -->
+        <a href="#" class="flex items-center justify-center space-x-2 text-3xl font-extrabold text-gray-800 mb-6">
+            <svg class="w-9 h-9 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path fill="#3B82F6" d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+            <span class="text-blue-600">Talk</span><span class="text-indigo-600">To Text</span>
+        </a>
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Create an Account</h2> <!-- Reduced mb here -->
+        <div class="space-y-1"> <!-- Consistent space-y for main form elements -->
+          
+          <!-- Full Name -->
+          <div>
+            <label for="registerFullName" class="block text-left text-gray-700 font-semibold mb-1">Full Name:</label>
+            <input type="text" id="registerFullName" placeholder="e.g., Jane Doe"
+                   class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+          </div>
+
+          <!-- Email -->
+          <div>
+            <label for="registerEmail" class="block text-left text-gray-700 font-semibold mb-1">Email:</label>
+            <input type="email" id="registerEmail" placeholder="e.g., jane.doe@example.com"
+                   class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+          </div>
+
+          <!-- Password -->
+          <div>
+            <label for="registerPassword" class="block text-left text-gray-700 font-semibold mb-1">Password:</label>
+            <input type="password" id="registerPassword"
+                   class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <p class="text-xs text-gray-500 text-left mt-0.5">Minimum 6 characters</p>
+          </div>
+
+          <!-- Role Selection (Radio Buttons) -->
+          <div>
+            <label class="block text-left text-gray-700 font-semibold mb-1">Register as:</label>
+            <div class="flex justify-center gap-4 mt-2"> <!-- Reduced gap here -->
+              <label class="flex items-center space-x-2 text-gray-700"><input type="radio" name="roleSelect" value="patient" checked class="form-radio text-blue-600"> <span>Patient</span></label>
+              <label class="flex items-center space-x-2 text-gray-700"><input type="radio" name="roleSelect" value="doctor" class="form-radio text-blue-600"> <span>Doctor</span></label>
+            </div>
+          </div>
+
+          <!-- Patient Fields -->
+          <div id="patientFields" class="space-y-2"> <!-- Reduced space-y here -->
+            <div>
+              <label for="registerAge" class="block text-left text-gray-700 font-semibold mb-1">Age:</label>
+              <input type="number" id="registerAge" placeholder="e.g., 10"
+                     class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+            </div>
+            <div>
+              <label class="block text-left text-gray-700 font-semibold mb-1">Gender:</label>
+              <div class="flex justify-center gap-4 mt-2"> <!-- Reduced gap here -->
+                <label class="flex items-center space-x-2 text-gray-700"><input type="radio" name="genderSelect" value="male" class="form-radio text-blue-600"> <span>Male</span></label>
+                <label class="flex items-center space-x-2 text-gray-700"><input type="radio" name="genderSelect" value="female" class="form-radio text-blue-600"> <span>Female</span></label>
+                <label class="flex items-center space-x-2 text-gray-700"><input type="radio" name="genderSelect" value="other" class="form-radio text-blue-600"> <span>Other</span></label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Doctor Fields (Hidden initially) -->
+          <div id="doctorFields" class="space-y-2 hidden"> <!-- Reduced space-y here -->
+            <div>
+              <label for="registerSpecialty" class="block text-left text-gray-700 font-semibold mb-1">Specialty:</label>
+              <input type="text" id="registerSpecialty" placeholder="e.g., Pediatric Speech Therapist"
+                     class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button id="registerSubmitBtn" class="btn-primary w-full">
+            Register
+          </button>
+        </div>
+
+        <p class="text-sm text-gray-600 mt-5"> <!-- Adjusted mt here -->
+          Already have an account? <a href="#" id="showLoginFromRegister" class="text-blue-600 hover:underline font-medium">Login</a>
+        </p>
+        <p id="registerMessage" class="text-red-500 text-sm mt-2 hidden"></p>
+      </div>
+    </div>
+
+    <!-- General App Loader (for auth operations, etc.) -->
+    <div id="authLoader" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex justify-center items-center hidden z-[1001]">
+        <div class="loader"></div>
+        <p class="ml-4 text-white text-lg">Loading...</p>
+    </div>
+
+    <!-- Main JavaScript -->
+    <script type="module" src="./src/main.js"></script>
+</body>
+</html>

@@ -47,6 +47,7 @@ let currentAudioUrl = null; // To store the URL of the last recorded audio
 let historyUnsubscribe = null; // Variable to store the unsubscribe function for history listener
 let feedbackUnsubscribe = null; // Variable to store the unsubscribe function for feedback listener
 let assignedExercisesUnsubscribe = null; // Variable for assigned exercises listener
+let currentAssignedExercise = null;
 
 /**
  * Initializes the patient interface, sets up event listeners, and loads initial data.
@@ -156,7 +157,9 @@ export function startNewPracticeSession() {
 function displayCurrentSentence() {
     // Use sessionSentences which is populated by assigned exercises or default.
     if (sessionSentences.length > 0 && currentSentenceIndex < sessionSentences.length) {
-        updateCurrentSentence(sessionSentences[currentSentenceIndex]);
+        const currentItem = sessionSentences[currentSentenceIndex];       
+        updateCurrentSentence(currentItem.sentence);
+        currentAssignedExercise = { assignedBy: currentItem.assignedBy };
         DOMElements.recordButton.classList.remove('hidden');
         DOMElements.stopButton.classList.add('hidden');
         DOMElements.loader.classList.add('hidden');
@@ -191,6 +194,7 @@ async function handleRecordingComplete(audioData, audioUrl) {
 
     if (!audioData || !audioUrl) {
         console.error("No audio data or URL received for analysis.");
+
         updateRecordingStatus("Analysis failed: No audio recorded.");
         showLoader(false);
         return;
@@ -202,29 +206,28 @@ async function handleRecordingComplete(audioData, audioUrl) {
     const currentSentence = DOMElements.currentSentenceElement.textContent; // Get the currently displayed sentence
 
     try {
-        // Call getPronunciationAnalysis from analysisService.js
-        // This function now handles both transcription and the pronunciation analysis logic
-        const analysis = await getPronunciationAnalysis(audioData, currentSentence);
+    const patientId = getUserId(); // ✅ Add this line
+    const doctorId = currentAssignedExercise?.assignedBy || null;
+    
 
-        displaySentenceResults(analysis, currentAudioUrl);
+    const analysis = await getPronunciationAnalysis(audioData, currentSentence, doctorId, patientId); // ✅ Pass patientId
 
-        const userId = getUserId();
-        if (userId) {
-            // savePronunciationResult expects (sentence, overallScore, wordDetails)
-            await savePronunciationResult(currentSentence, analysis.overallScore, analysis.words);
-            console.log("Pronunciation result saved.");
-            // After saving a result, update the dashboard stats
-            updatePatientDashboard();
-        } else {
-            console.error("User ID not available, cannot save pronunciation result.");
-        }
-        updateRecordingStatus("Analysis complete!");
+    displaySentenceResults(analysis, currentAudioUrl);
 
-    } catch (error) {
-        console.error("Transcription or analysis failed:", error);
-        updateRecordingStatus("Error during analysis. Please try again.");
-        showLoader(false);
-    } finally {
+    if (patientId) {
+        await savePronunciationResult(currentSentence, analysis.overallScore, analysis.words);
+        console.log("Pronunciation result saved.");
+        updatePatientDashboard();
+    } else {
+        console.error("User ID not available, cannot save pronunciation result.");
+    }
+    updateRecordingStatus("Analysis complete!");
+} catch (error) {
+    console.error("Transcription or analysis failed:", error);
+    updateRecordingStatus("Error during analysis. Please try again.");
+    showLoader(false);
+}
+ finally {
         // AudioContext cleanup is now handled by audioRecorder.js's cleanupAudioResources
     }
 }
@@ -323,19 +326,30 @@ async function loadAndDisplayAssignedExercises() {
         // Map assigned exercise names to their full sentence lists
         let newSessionSentences = [];
         if (exercisesData.length > 0) {
-            exercisesData.forEach(assignedEx => {
-                const exerciseName = assignedEx.exerciseName;
-                const sentencesForExercise = EXERCISE_SENTENCES[exerciseName];
-                if (sentencesForExercise) {
-                    newSessionSentences = newSessionSentences.concat(sentencesForExercise);
-                } else {
-                    console.warn(`No specific sentences found for exercise: ${exerciseName}. Using default sentences.`);
-                    newSessionSentences = newSessionSentences.concat(SENTENCES_TO_PRACTICE);
-                }
-            });
+    exercisesData.forEach(assignedEx => {
+        const exerciseName = assignedEx.exerciseName;
+        const sentencesForExercise = EXERCISE_SENTENCES[exerciseName];
+        if (sentencesForExercise) {
+            newSessionSentences = newSessionSentences.concat(
+                sentencesForExercise.map(sentence => ({
+                    sentence,
+                    assignedBy: assignedEx.assignedBy // ✅ Attach doctor ID
+                }))
+            );
         } else {
+            console.warn(`No specific sentences found for exercise: ${exerciseName}. Using default sentences.`);
+            newSessionSentences = newSessionSentences.concat(
+                SENTENCES_TO_PRACTICE.map(sentence => ({ sentence, assignedBy: assignedEx.assignedBy }))
+            );
+        }
+    });
+} else {
             console.log("No exercises assigned, falling back to default sentences.");
-            newSessionSentences = SENTENCES_TO_PRACTICE; // Fallback to default if no exercises assigned
+            newSessionSentences = SENTENCES_TO_PRACTICE.map(sentence => ({
+                sentence,
+                assignedBy: null // No doctor assigned, use default rubric
+            }));
+
         }
         sessionSentences = newSessionSentences; // Update the global sessionSentences
         console.log("Updated sessionSentences for practice:", sessionSentences);

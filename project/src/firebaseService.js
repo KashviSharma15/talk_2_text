@@ -247,7 +247,7 @@ export async function savePatientFeedback(patientUid, feedbackText, doctorId) {
 
     try {
         const docRef = await addDoc(
-            collection(db, `artifacts/${APP_ID}/users/${patientUid}/assignedExercises`), // ✅ Corrected path
+            collection(db, `artifacts/${APP_ID}/users/${patientUid}/patientFeedback`), // ✅ Corrected path
             {
                 feedbackText,
                 doctorId,
@@ -297,7 +297,7 @@ export async function markFeedbackAsRead(patientUid, feedbackId) {
         return;
     }
     try {
-        const feedbackRef = doc(db, `artifacts/${APP_ID}/users/${patientUid}/feedback`, feedbackId);
+        const feedbackRef = doc(db, `artifacts/${APP_ID}/users/${patientUid}/patientFeedback/${feedbackId}`);
         await updateDoc(feedbackRef, { read: true });
         console.log(`Feedback ${feedbackId} marked as read for patient ${patientUid}`);
     } catch (e) {
@@ -433,48 +433,116 @@ export function listenToAssignedExercises(patientId, callback) {
  * @param {string} doctorId - The UID of the doctor.
  * @param {Object} settings - The rubric settings object.
  */
-export async function saveRubricSettings(doctorId, settings) {
+export async function saveRubricSettings(doctorId, settings, patientId = null) {
     await waitForFirebaseAuthReady();
     if (!doctorId) {
-        console.error("Cannot save rubric settings: Doctor ID not available.");
+        console.error("Doctor ID is required.");
         throw new Error("Doctor ID not available.");
     }
+
     try {
-        const docRef = doc(db, `artifacts/${APP_ID}/users/${doctorId}/rubricSettings/customRubric`);
+        let docRef;
+        if (patientId) {
+            docRef = doc(db, `artifacts/${APP_ID}/doctors/${doctorId}/patients/${patientId}/rubricSettings/customRubric`);
+        } else {
+            docRef = doc(db, `artifacts/${APP_ID}/doctors/${doctorId}/rubricSettings/customRubric`);
+        }
+
         await setDoc(docRef, settings, { merge: true });
-        console.log("Rubric settings saved successfully for doctor:", doctorId);
+        console.log("Rubric settings saved for", patientId ? `patient ${patientId}` : `doctor ${doctorId}`);
+    } catch (e) {
+        console.error("Error saving rubric settings:", e);
+        throw e;
+    }
+}
+
+
+/**
+ * Saves custom rubric settings for a specific patient.
+ * @param {string} patientId - The UID of the patient.
+ * @param {Object} settings - The rubric settings object.
+ */
+export async function saveRubricSettingsForPatient(doctorId, patientId, settings) {
+    await waitForFirebaseAuthReady();
+
+    if (!doctorId || !patientId) {
+        console.error("Cannot save rubric settings: Missing doctor or patient ID.");
+        throw new Error("Doctor and Patient ID required.");
+    }
+
+    try {
+        const docRef = doc(db, `artifacts/${APP_ID}/doctors/${doctorId}/patients/${patientId}/rubricSettings/customRubric`);
+        await setDoc(docRef, settings, { merge: true });
+        console.log(`Rubric settings saved for doctor ${doctorId} and patient ${patientId}`);
     } catch (e) {
         console.error("Error saving rubric settings: ", e);
         throw e;
     }
 }
 
+
+
 /**
  * Retrieves the doctor's custom rubric settings from Firestore.
  * @param {string} doctorId - The UID of the doctor.
  * @returns {Promise<Object|null>} The rubric settings object, or null if not found.
  */
-export async function getRubricSettings(doctorId) {
+export async function getRubricSettings(doctorId, patientId = null) {
     await waitForFirebaseAuthReady();
-    if (!doctorId) {
-        console.error("Cannot get rubric settings: Doctor ID not available.");
-        return null;
-    }
+
     try {
-        const docRef = doc(db, `artifacts/${APP_ID}/users/${doctorId}/rubricSettings/customRubric`);
+        let docRef;
+        if (patientId) {
+            // Per-patient rubric (nested under doctor's patients)
+            docRef = doc(db, `artifacts/${APP_ID}/doctors/${doctorId}/patients/${patientId}/rubricSettings/customRubric`);
+        } else {
+            // Fallback: Global rubric for doctor
+            docRef = doc(db, `artifacts/${APP_ID}/doctors/${doctorId}/rubricSettings`);
+        }
+
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
             console.log("Rubric settings fetched:", docSnap.data());
             return docSnap.data();
         } else {
-            console.log("No custom rubric settings found for doctor:", doctorId);
+            console.warn("No rubric settings found.");
             return null;
         }
-    } catch (e) {
-        console.error("Error getting rubric settings: ", e);
+    } catch (error) {
+        console.error("Error fetching rubric settings:", error);
         return null;
     }
 }
+
+/**
+ * Retrieves custom rubric settings for a specific patient.
+ * @param {string} patientId - The UID of the patient.
+ * @returns {Promise<Object|null>} The rubric settings object, or null if not found.
+ */
+export async function getRubricSettingsForPatient(patientId) {
+    await waitForFirebaseAuthReady();
+    if (!patientId) {
+        console.warn("No patientId provided, cannot fetch rubric settings.");
+        return null;
+    }
+
+    try {
+        const docRef = doc(db, `artifacts/${APP_ID}/users/${patientId}/rubricSettings/customRubric`);
+        const snapshot = await getDoc(docRef);
+        if (snapshot.exists()) {
+            console.log("Patient-specific rubric settings fetched:", snapshot.data());
+            return snapshot.data();
+        } else {
+            console.log("No custom rubric settings found for patient:", patientId);
+            return null;
+        }
+    } catch (e) {
+        console.error("Error fetching patient rubric settings: ", e);
+        return null;
+    }
+}
+
+
 
 /**
  * Fetches the count of all active patients (role = 'patient').
@@ -657,7 +725,7 @@ export async function fetchNewFeedbackCount(patientId) {
         return 0;
     }
     try {
-        const feedbackCollectionRef = collection(db, `artifacts/${APP_ID}/users/${patientId}/feedback`);
+        const feedbackCollectionRef = collection(db, `artifacts/${APP_ID}/users/${patientId}/patientFeedback`);
         const q = query(
             feedbackCollectionRef,
             where("read", "==", false) // Query for unread feedback

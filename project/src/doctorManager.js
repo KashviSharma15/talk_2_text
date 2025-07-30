@@ -32,6 +32,7 @@ import {
     saveAssignedExercise,
     listenToAssignedExercises, // NEW: Import for listening to assigned exercises for doctor's view
     saveRubricSettings, // Import for saving rubric settings
+    saveRubricSettingsForPatient, 
     getRubricSettings, // Import for getting rubric settings
     fetchActivePatientsCount, // Import for active patients count
     fetchTodaysSessionsCount // Import for today's sessions count
@@ -343,7 +344,7 @@ async function handleCustomizeScoringRubric() {
 
     const doctorId = getUserId();
     if (doctorId) {
-        const settings = await getRubricSettings(doctorId);
+        const settings = await getRubricSettings(doctorId, currentViewedPatientId);
         if (settings) {
             DOMElements.mispronunciationWeight.value = settings.mispronunciationWeight ?? 50;
             DOMElements.omissionWeight.value = settings.omissionWeight ?? 70;
@@ -369,9 +370,12 @@ async function handleCustomizeScoringRubric() {
  */
 async function handleSaveRubric() {
     console.log(`[DoctorManager Debug] handleSaveRubric called.`);
+
     const doctorId = getUserId();
-    if (!doctorId) {
-        DOMElements.rubricMessage.textContent = 'Could not identify doctor. Please log in again.';
+    const patientId = currentViewedPatientId; // ✅ Use the globally stored patient ID
+
+    if (!doctorId || !patientId) {
+        DOMElements.rubricMessage.textContent = 'Could not identify doctor or patient. Please try again.';
         DOMElements.rubricMessage.classList.remove('hidden', 'text-green-600');
         DOMElements.rubricMessage.classList.add('text-red-600');
         setTimeout(() => {
@@ -385,20 +389,21 @@ async function handleSaveRubric() {
         mispronunciationWeight: parseInt(DOMElements.mispronunciationWeight.value),
         omissionWeight: parseInt(DOMElements.omissionWeight.value),
         insertionWeight: parseInt(DOMElements.insertionWeight.value),
-        // Removed clarityThreshold from settings to be saved
         clarityThreshold: parseInt(DOMElements.clarityThreshold.value)
     };
 
     try {
-        await saveRubricSettings(doctorId, rubricSettings);
+        const doctorId = getUserId(); // 👈 Make sure this is imported from firebaseService.js
+        await saveRubricSettingsForPatient(doctorId, currentViewedPatientId, rubricSettings);
+
         DOMElements.rubricMessage.textContent = 'Rubric settings saved successfully!';
         DOMElements.rubricMessage.classList.remove('hidden', 'text-red-600');
         DOMElements.rubricMessage.classList.add('text-green-600');
         setTimeout(() => {
             DOMElements.rubricMessage.classList.add('hidden');
             DOMElements.rubricMessage.textContent = '';
-            hideRubricModal(); // Hide modal on success
-        }, 2000); // Message disappears after 2 seconds, then modal hides
+            hideRubricModal();
+        }, 2000);
     } catch (error) {
         console.error("Error saving rubric settings:", error);
         DOMElements.rubricMessage.textContent = 'Failed to save rubric settings. Please try again.';
@@ -407,9 +412,10 @@ async function handleSaveRubric() {
         setTimeout(() => {
             DOMElements.rubricMessage.classList.add('hidden');
             DOMElements.rubricMessage.textContent = '';
-        }, 3000); // Message disappears after 3 seconds
+        }, 3000);
     }
 }
+
 
 
 /**

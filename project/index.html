@@ -1,500 +1,387 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Speech Therapy Platform</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>TalkToText – Speech Therapy Assistant</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Inter Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Chart.js CDN for graphs (loaded globally, no import needed in JS modules) -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- jsPDF CDN for PDF generation (loaded globally) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Google Fonts - Poppins -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons (social media, hamburger) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* Base font for the body */
+        /* Custom styles to ensure Poppins font is applied and for general overrides */
         body {
-            font-family: 'Inter', sans-serif;
-            position: relative; /* Needed for confetti positioning */
-            background-color: #f4f7f6; /* Light background */
+            font-family: 'Poppins', sans-serif;
+            line-height: 1.6;
+            color: #333; /* Default text color */
+            background: #f8fafc; /* Lighter background for overall page */
+            scroll-behavior: smooth; /* Smooth scrolling for anchor links */
+            overflow-x: hidden; /* Prevent horizontal scroll */
             min-height: 100vh;
             display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            box-sizing: border-box;
+            flex-direction: column;
         }
-        /* Loader spinner styles */
-        .loader {
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #3498db;
+        main {
+            flex-grow: 1;
+        }
+        /* Hide scrollbar for a cleaner look, but keep functionality */
+        body::-webkit-scrollbar {
+            display: none;
+        }
+        body {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        /* Hero text animation */
+        .hero-text-fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInSlideUp 1s ease-out forwards;
+        }
+        .hero-text-fade-in.delay-1 { animation-delay: 0.3s; }
+        .hero-text-fade-in.delay-2 { animation-delay: 0.6s; }
+        .hero-text-fade-in.delay-3 { animation-delay: 0.9s; }
+
+        @keyframes fadeInSlideUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        /* Mobile menu animation */
+        .mobile-menu {
+            transform: translateX(100%);
+            transition: transform 0.3s ease-out;
+        }
+        .mobile-menu.open {
+            transform: translateX(0);
+        }
+        /* Scroll to top button */
+        #scrollToTopBtn {
+            display: none; /* Hidden by default */
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 99;
+            background-color: #0a72ef; /* Original blue */
+            color: white;
+            border: none;
             border-radius: 50%;
             width: 50px;
             height: 50px;
-            animation: spin 1s linear infinite;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        /* Text highlighting for analysis results */
-        .highlight-correct { color: #22c55e; } /* Green for correctly pronounced words */
-        .highlight-mispronunciation { color: #ef4444; text-decoration: underline; text-decoration-style: wavy; } /* Red and wavy underline for mispronounced words */
-        .highlight-omission { color: #a1a1aa; text-decoration: line-through; } /* Gray and strikethrough for omitted words */
-        .highlight-insertion { color: #3b82f6; font-weight: bold; } /* Blue and bold for inserted words */
-        .highlight-clarity { color: #f97316; font-style: italic; text-decoration: underline dotted; } /* Orange, italic, and dotted underline for unclear words */
-
-        /* Flash animations for feedback */
-        @keyframes flash-green {
-            0%, 100% { background-color: #dcfce7; border-color: #22c55e; } /* Light green background, green border */
-            50% { background-color: white; border-color: #d1d5db; } /* White background, default border */
-        }
-        .flash-correct { animation: flash-green 1.5s ease-out; } /* Apply green flash animation */
-        @keyframes flash-red {
-            0%, 100% { background-color: #fee2e2; border-color: #ef4444; } /* Light red background, red border */
-            50% { background-color: white; border-color: #d1d5db; } /* White background, default border */
-        }
-        .flash-incorrect { animation: flash-red 1.5s ease-out; } /* Apply red flash animation */
-
-        /* Utility class to hide elements */
-        .hidden { display: none; }
-
-        /* Confetti Styles for celebratory animations */
-        #confetti-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none; /* Allows clicks to pass through */
-            overflow: hidden;
-            z-index: 1000; /* Ensures confetti is on top */
-        }
-        .confetti {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background-color: #f00; /* Default color, overridden by JS */
-            opacity: 0.7;
-            animation: confetti-fall 3s linear forwards; /* Confetti falling animation */
-        }
-        @keyframes confetti-fall {
-            0% { transform: translateY(-10vh) rotate(0deg); } /* Starts above viewport */
-            100% { transform: translateY(110vh) rotate(720deg); } /* Falls below viewport, rotates */
+        #scrollToTopBtn:hover {
+            background-color: #0056b3; /* Darker blue for hover */
+            transform: translateY(-2px);
         }
 
-        /* Modal overlay styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000; /* Above confetti */
-        }
-        .modal-content {
-            background-color: white;
-            padding: 2rem;
-            border-radius: 0.75rem; /* rounded-xl */
-            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); /* shadow-lg */
-            width: 90%;
-            max-width: 500px;
+        /* Custom gradient for hero section background */
+        .hero-bg-gradient {
+            background: radial-gradient(at 80% 20%, #e0f7fa, transparent 50%), /* Lighter blue */
+                        radial-gradient(at 20% 90%, #f3e5f5, transparent 50%), /* Lighter purple */
+                        linear-gradient(to bottom right, #bbdefb, #e3f2fd); /* Light blue to very light blue */
             position: relative;
+            overflow: hidden; /* Ensure gradients don't spill */
+        }
+
+        /* Hover effects for feature cards */
+        .feature-card {
+            transition: all 0.3s ease-in-out;
+            border: 1px solid transparent; /* For subtle border on hover */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Default shadow */
+            opacity: 0; /* Start hidden for animation */
+            transform: translateY(20px); /* Start slightly below for animation */
+            animation: scaleIn 0.6s ease-out forwards; /* Apply scale-in animation */
+        }
+        .feature-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            border-color: rgba(59, 130, 246, 0.3); /* Blue-300 with transparency */
+        }
+        /* Staggered animation for feature cards */
+        .feature-grid .feature-card:nth-child(1) { animation-delay: 0.2s; }
+        .feature-grid .feature-card:nth-child(2) { animation-delay: 0.4s; }
+        .feature-grid .feature-card:nth-child(3) { animation-delay: 0.6s; }
+        .feature-grid .feature-card:nth-child(4) { animation-delay: 0.8s; }
+        .feature-grid .feature-card:nth-child(5) { animation-delay: 1.0s; }
+        .feature-grid .feature-card:nth-child(6) { animation-delay: 1.2s; }
+
+
+        /* New animation for elements scaling in */
+        @keyframes scaleIn {
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Bounce animation for buttons (used once on load) */
+        @keyframes bounce-once {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+        .animate-bounce-once {
+            animation: bounce-once 1.5s ease-out 1; /* Run once */
         }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
-    <!-- Confetti container for celebratory effects -->
-    <div id="confetti-container"></div>
+<body class="antialiased">
 
-    <!-- The original roleSelection div is removed as per the new login flow.
-         The login modal will now be the initial entry point. -->
-
-    <!-- Patient Interface: Hidden by default, shown when "Patient" is selected -->
-    <div id="patientInterface" class="hidden max-w-4xl w-full bg-white rounded-xl shadow-lg p-8 space-y-6">
-        <div class="flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-gray-800">Patient Portal</h1>
-            <button id="patientLogoutBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-lg text-sm">Log Out</button>
+    <!-- Navigation -->
+    <header class="bg-white shadow-lg py-4 px-6 md:px-12 flex justify-between items-center sticky top-0 z-50 flex-shrink-0">
+        <div class="flex items-center">
+            <!-- Logo SVG -->
+            <a href="#" id="homeLogo" class="flex items-center space-x-2 text-3xl font-extrabold text-gray-800 hover:text-blue-600 transition duration-300">
+                <svg class="w-9 h-9 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path fill="#3B82F6" d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                </svg>
+                <span class="text-blue-600">Talk</span><span class="text-indigo-600">To Text</span>
+            </a>
         </div>
+        <nav class="hidden md:flex space-x-8">
+            <a href="#home" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors duration-300">Home</a>
+            <a href="#features" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors duration-300">Features</a>
+            <a href="#how-it-works" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors duration-300">How It Works</a>
+            <a href="#for-users" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors duration-300">For Users</a>
+            <a href="#testimonials" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors duration-300">Testimonials</a>
+            <a href="#contact" class="text-gray-700 hover:text-blue-600 font-medium text-lg transition-colors duration-300">Contact</a>
+        </nav>
+        <!-- Login / Sign Up Button - Now a direct link to app.html -->
+        <a href="app.html?showLogin=true" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl shadow-md transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 text-lg font-semibold hidden md:block">Login / Sign Up</a>
+        
+        <!-- Mobile Menu Button (Hamburger) -->
+        <button id="mobileMenuBtn" class="md:hidden text-gray-700 text-3xl focus:outline-none">
+            <i class="fas fa-bars"></i>
+        </button>
+    </header>
 
-        <!-- Patient Navigation Tabs -->
-        <div class="flex justify-center border-b border-gray-200">
-            <button data-view="patientDashboard" class="patient-nav-btn font-semibold py-3 px-5 border-b-2 border-blue-500 text-blue-500">Dashboard</button>
-            <button data-view="patientPractice" class="patient-nav-btn font-semibold py-3 px-5 border-b-2 border-transparent text-gray-500 hover:text-blue-500">Practice</button>
-            <button data-view="patientHistory" class="patient-nav-btn font-semibold py-3 px-5 border-b-2 border-transparent text-gray-500 hover:text-blue-500">Progress</button>
-            <button data-view="patientFeedback" class="patient-nav-btn font-semibold py-3 px-5 border-b-2 border-transparent text-gray-500 hover:text-blue-500">Feedback</button>
-        </div>
-
-        <!-- Patient Views (Dashboard, Practice, History, Feedback) -->
-        <div id="patientDashboard" class="patient-view">
-            <h2 class="text-xl font-bold text-gray-700 mb-4">Your Dashboard</h2>
-            <div class="grid md:grid-cols-3 gap-4 text-center">
-                <div class="bg-blue-50 p-4 rounded-lg">
-                    <p class="text-sm text-blue-700 font-semibold">Daily Goal</p>
-                    <p id="dailyGoalSentences" class="text-2xl font-bold text-blue-900">Loading</p>
-                </div>
-                <div class="bg-green-50 p-4 rounded-lg">
-                    <p class="text-sm text-green-700 font-semibold">Practice Streak</p>
-                    <p id="practiceStreakDays" class="text-2xl font-bold text-green-900">Loading...</p>
-                </div>
-                <div class="bg-yellow-50 p-4 rounded-lg">
-                    <p class="text-sm text-yellow-700 font-semibold">New Feedback</p>
-                    <p id="newFeedbackCount" class="text-2xl font-bold text-yellow-900">Loading...</p>
-                </div>
-            </div>
-            <div class="mt-6 bg-gray-50 p-4 rounded-lg">
-                <h3 class="font-semibold mb-2">Assigned Exercises</h3>
-                <div id="patientAssignedExercises" class="list-disc list-inside space-y-1">
-                    <p class="text-gray-500">No exercises assigned yet.</p>
-                </div>
-            </div>
-        </div>
-
-        <div id="patientPractice" class="patient-view hidden">
-            <!-- Practice Session Section -->
-            <div id="practiceSessionSection">
-                <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6">
-                    <p class="text-lg font-medium text-gray-700 mb-4">Sentence to Practice:</p>
-                    <p id="currentSentence" class="text-2xl font-semibold text-gray-900 text-center mb-6"></p>
-                    <!-- Waveform canvas for audio visualization -->
-                    <canvas id="waveform" class="hidden w-full h-24 bg-gray-200 rounded-lg mb-4"></canvas>
-                    <div class="flex justify-center items-center space-x-4 h-16">
-                        <!-- Record button (mic icon) -->
-                        <button id="recordButton" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold p-4 rounded-full shadow-md transition duration-300 ease-in-out flex items-center justify-center">
-                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
-                        </button>
-                        <!-- Stop button (hidden by default) -->
-                        <button id="stopButton" class="hidden bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out flex items-center space-x-2">
-                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 8a2 2 0 012-2h0a2 2 0 012 2v4a2 2 0 01-2 2h0a2 2 0 01-2-2V8z" clip-rule="evenodd"></path></svg>
-                            <span>Stop Recording</span>
-                        </button>
-                    </div>
-                    <p id="recordingStatus" class="text-center text-sm text-gray-500 mt-3"></p>
-                </div>
-                <!-- Loader for speech analysis -->
-                <div id="loader" class="flex justify-center items-center hidden"><div class="loader"></div><p class="ml-4 text-gray-600">Analyzing your speech...</p></div>
-
-                <!-- Results Content: Hidden by default, shown after analysis -->
-                <div id="resultsContent" class="hidden bg-white border border-gray-200 rounded-lg p-6">
-                    <div id="congratulations" class="hidden text-center mb-4">
-                        <p class="text-2xl font-bold text-green-600">🎉 Good Job! 🎉</p>
-                    </div>
-                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Analysis Results:</h2>
-                    <div class="mb-6">
-                        <p class="text-lg font-medium text-gray-700 mb-2">Overall Score:</p>
-                        <div class="w-full bg-gray-200 rounded-full h-4 relative">
-                            <div id="progressBar" class="bg-green-500 h-4 rounded-full transition-all duration-500 ease-out" style="width: 0%;"></div>
-                            <span id="overallScore" class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">0%</span>
-                        </div>
-                    </div>
-                    <div class="mb-6">
-                        <p class="text-lg font-medium text-gray-700 mb-2">Detailed Breakdown:</p>
-                        <div id="detailedBreakdown" class="text-lg leading-relaxed text-gray-800 bg-gray-50 p-4 rounded-md border border-gray-200 min-h-[80px]"></div>
-                    </div>
-                    <!-- Audio playback for recorded speech -->
-                    <div id="audioPlayback" class="hidden mt-4">
-                        <h4 class="font-semibold text-gray-700 mb-2">Listen to your recording:</h4>
-                        <audio id="recordedAudio" controls class="w-full"></audio>
-                    </div>
-                    <!-- Section to practice mispronounced words -->
-                    <div id="practiceSection" class="hidden mb-6">
-                        <h3 class="text-lg font-medium text-gray-700 mb-3">Practice Mispronounced Words:</h3>
-                        <div id="practiceWordsContainer" class="flex flex-wrap gap-3"></div>
-                    </div>
-                    <div class="flex justify-end mt-6">
-                        <button id="nextSentenceBtn" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out hidden">Next Sentence</button>
-                    </div>
-                </div>
-            </div>
-            <div id="restartSection" class="flex justify-center mt-8 space-x-4">
-                <button id="startNewSessionBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-8 rounded-lg shadow-lg transition duration-300 ease-in-out">Start New Session</button>
-            </div>
-        </div>
-
-        <div id="patientHistory" class="patient-view hidden">
-            <h2 class="text-xl font-bold text-gray-700 mb-4">Your Progress</h2>
-            <p id="userIdDisplay" class="text-sm text-gray-500 text-center mb-4">User ID: Loading...</p>
-            <div class="bg-gray-50 p-4 rounded-lg mb-6">
-                <h3 class="font-semibold mb-2">Pronunciation Accuracy Over Time</h3>
-                <canvas id="progressChart" class="w-full h-full"></canvas>
-            </div>
-            <!-- NEW: Daily Practice Sessions Chart -->
-            <div class="bg-gray-50 p-4 rounded-lg mb-6">
-                <h3 class="font-semibold mb-2">Daily Practice Sessions</h3>
-                <canvas id="dailySessionsChart" class="w-full h-full"></canvas>
-            </div>
-            <div id="historyList" class="space-y-3"></div>
-        </div>
-
-        <div id="patientFeedback" class="patient-view hidden">
-            <h2 class="text-xl font-bold text-gray-700 mb-4">Therapist Feedback</h2>
-            <div id="patientFeedbackList" class="space-y-4">
-                <!-- Feedback entries will be dynamically inserted here by JavaScript -->
-            </div>
-        </div>
+    <!-- Mobile Menu Overlay -->
+    <div id="mobileMenu" class="mobile-menu fixed top-0 right-0 h-full w-64 bg-white shadow-xl p-6 z-40 md:hidden">
+        <button id="closeMobileMenuBtn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-4xl font-bold leading-none">&times;</button>
+        <nav class="flex flex-col space-y-6 mt-16">
+            <a href="#home" class="text-gray-700 hover:text-blue-600 font-medium text-xl py-2" data-action="close-menu">Home</a>
+            <a href="#features" class="text-gray-700 hover:text-blue-600 font-medium text-xl py-2" data-action="close-menu">Features</a>
+            <a href="#how-it-works" class="text-gray-700 hover:text-blue-600 font-medium text-xl py-2" data-action="close-menu">How It Works</a>
+            <a href="#for-users" class="text-gray-700 hover:text-blue-600 font-medium text-xl py-2" data-action="close-menu">For Users</a>
+            <a href="#testimonials" class="text-gray-700 hover:text-blue-600 font-medium text-xl py-2" data-action="close-menu">Testimonials</a>
+            <a href="#contact" class="text-gray-700 hover:text-blue-600 font-medium text-xl py-2" data-action="close-menu">Contact</a>
+            <!-- Mobile Login / Sign Up Button - Now a direct link to app.html -->
+            <a href="app.html?showLogin=true" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl shadow-md transition-all duration-300 mt-6 text-lg font-semibold">Login / Sign Up</a>
+        </nav>
     </div>
 
-    <!-- Doctor Interface: Hidden by default, shown when "Doctor" is selected -->
-    <div id="doctorInterface" class="hidden max-w-6xl w-full bg-white rounded-xl shadow-lg p-8 space-y-6">
-        <div class="flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-gray-800">Therapist Dashboard</h1>
-            <button id="doctorLogoutBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-lg text-sm">Log Out</button>
+    <!-- Hero Section -->
+    <section id="home" class="hero text-center py-24 md:py-40 px-4 hero-bg-gradient overflow-hidden">
+        <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold text-gray-900 mb-6 leading-tight hero-text-fade-in delay-1">
+            Unlock Your <span class="text-blue-600">True Voice</span>
+        </h1>
+        <p class="text-lg md:text-xl text-gray-700 mb-10 max-w-3xl mx-auto hero-text-fade-in delay-2">
+            Your personalized AI-powered platform for enhancing speech clarity, confidence, and fluency through interactive practice and expert guidance.
+        </p>
+        <div class="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6 hero-text-fade-in delay-3">
+            <!-- Get Started Today Button - Now a direct link to app.html -->
+            <a href="app.html?showLogin=true" class="bg-blue-600 hover:bg-blue-700 text-white px-12 py-4 rounded-xl shadow-xl transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 text-xl font-bold animate-bounce-once">Get Started Today</a>
+            <a href="#how-it-works" class="text-blue-600 hover:text-blue-800 font-semibold text-xl flex items-center transition-colors duration-300 group">
+                Learn More 
+                <i class="fas fa-arrow-right ml-3 text-lg transition-transform duration-300 group-hover:translate-x-1"></i>
+            </a>
         </div>
+    </section>
 
-        <!-- Doctor Dashboard View -->
-        <div id="doctorDashboardView">
-            <h2 class="text-xl font-bold text-gray-700 mb-4">Dashboard Overview</h2>
-            <div class="grid md:grid-cols-3 gap-4 text-center">
-                <div class="bg-blue-50 p-4 rounded-lg">
-                    <p class="text-sm text-blue-700 font-semibold">Active Patients</p>
-                    <p id="activePatientsCount" class="text-3xl font-bold text-blue-900">Loading...</p>
+    <!-- Features Section -->
+    <section id="features" class="py-20 md:py-32 px-4 bg-gray-50">
+        <h2 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-16">Key Features</h2>
+        <div class="feature-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+            <div class="feature-card bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:-translate-y-2 border border-gray-100">
+                <div class="text-5xl mb-6 text-blue-600"><i class="fas fa-robot"></i></div>
+                <h3 class="text-2xl font-semibold text-gray-800 mb-3">AI-Powered Pronunciation Feedback</h3>
+                <p class="text-gray-600 text-lg">Receive instant, intelligent analysis on your speech, identifying areas for precise improvement.</p>
+            </div>
+            <div class="feature-card bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:-translate-y-2 border border-gray-100">
+                <div class="text-5xl mb-6 text-rose-500"><i class="fas fa-comment-medical"></i></div>
+                <h3 class="text-2xl font-semibold text-gray-800 mb-3">Personalized Doctor Feedback</h3>
+                <p class="text-gray-600 text-lg">Your therapist can provide tailored comments and guidance directly within the platform.</p>
+            </div>
+            <div class="feature-card bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:-translate-y-2 border border-gray-100">
+                <div class="text-5xl mb-6 text-purple-600"><i class="fas fa-chart-line"></i></div>
+                <h3 class="text-2xl font-semibold text-gray-800 mb-3">Comprehensive Progress Tracking</h3>
+                <p class="text-gray-600 text-lg">Visualize your speech journey with intuitive charts showing accuracy, sessions, and challenging words.</p>
+            </div>
+            <div class="feature-card bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:-translate-y-2 border border-gray-100">
+                <div class="text-5xl mb-6 text-orange-500"><i class="fas fa-tasks"></i></div>
+                <h3 class="text-2xl font-semibold text-gray-800 mb-3">Doctor-Assigned Custom Practice</h3>
+                <p class="text-gray-600 text-lg">Therapists can assign specific exercises and sentences to match your individual therapy plan.</p>
+            </div>
+            <div class="feature-card bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:-translate-y-2 border border-gray-100">
+                <div class="text-5xl mb-6 text-green-600"><i class="fas fa-microphone-alt"></i></div>
+                <h3 class="text-2xl font-semibold text-gray-800 mb-3">Mic-Based Practice</h3>
+                <p class="text-gray-600 text-lg">Speak directly using your microphone — no uploads or complex setups needed for instant practice.</p>
+            </div>
+            <div class="feature-card bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:-translate-y-2 border border-gray-100">
+                <div class="text-5xl mb-6 text-gray-600"><i class="fas fa-lock"></i></div>
+                <h3 class="text-2xl font-semibold text-gray-800 mb-3">Privacy-First Design</h3>
+                <p class="text-gray-600 text-lg">All voice processing happens locally on your device — ensuring your voice data is never stored or transmitted.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="py-20 md:py-32 px-4 bg-white">
+        <h2 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-16">How It Works</h2>
+        <div class="max-w-5xl mx-auto space-y-20">
+            <!-- Step 1: Sign Up & Log In -->
+            <div class="flex flex-col md:flex-row items-center md:space-x-12">
+                <div class="md:w-1/2 text-center md:text-left mb-8 md:mb-0">
+                    <div class="text-6xl text-blue-600 mb-4"><i class="fas fa-user-plus"></i></div>
+                    <h3 class="text-3xl font-bold text-gray-800 mb-3">1. Sign Up & Log In</h3>
+                    <p class="text-gray-600 text-lg">Create your free account as a patient or a therapist to access your personalized portal.</p>
                 </div>
-                <div class="bg-green-50 p-4 rounded-lg">
-                    <p class="text-sm text-green-700 font-semibold">Today's Sessions</p>
-                    <p id="todaysSessionsCount" class="text-3xl font-bold text-green-900">Loading...</p>
-                </div>
-                <div class="bg-red-50 p-4 rounded-lg">
-                    <p class="text-sm text-red-700 font-semibold">Alerts</p>
-                    <p id="alertsCount" class="text-3xl font-bold text-red-900">Loading...</p>
+                <div class="md:w-1/2">
+                    <img src="login.png" alt="Login Screen Placeholder" class="rounded-xl shadow-xl w-full h-auto">
                 </div>
             </div>
 
-            <div class="mt-6">
-                <h2 class="text-xl font-bold text-gray-700 mb-4">Patient Management</h2>
-                <input type="text" id="patientSearchInput" placeholder="Search patients..." class="w-full p-2 border rounded-lg mb-4">
-                <div id="patientList" class="space-y-2">
-                    <!-- Patient items will be dynamically inserted here -->
+            <!-- Step 2: Practice & Get Instant Feedback -->
+            <div class="flex flex-col md:flex-row-reverse items-center md:space-x-reverse md:space-x-12">
+                <div class="md:w-1/2 text-center md:text-right mb-8 md:mb-0">
+                    <div class="text-6xl text-rose-500 mb-4"><i class="fas fa-bullhorn"></i></div>
+                    <h3 class="text-3xl font-bold text-gray-800 mb-3">2. Practice & Get Instant Feedback</h3>
+                    <p class="text-gray-600 text-lg">Patients practice assigned sentences or free-form speech, receiving immediate AI-powered pronunciation analysis.</p>
+                </div>
+                <div class="md:w-1/2">
+                    <img src="mic_practice.png" alt="Mic Practice Interface Placeholder" class="rounded-xl shadow-xl w-full h-auto">
+                </div>
+            </div>
+
+            <!-- Step 3: Doctor Reviews & Assigns -->
+            <div class="flex flex-col md:flex-row items-center md:space-x-12">
+                <div class="md:w-1/2 text-center md:text-left mb-8 md:mb-0">
+                    <div class="text-6xl text-purple-600 mb-4"><i class="fas fa-user-md"></i></div>
+                    <h3 class="text-3xl font-bold text-gray-800 mb-3">3. Doctor Reviews & Assigns</h3>
+                    <p class="text-gray-600 text-lg">Therapists review patient progress, provide personalized feedback, and assign new exercises or customize scoring rubrics.</p>
+                </div>
+                <div class="md:w-1/2">
+                    <img src="doctor_portal.png" alt="Doctor Dashboard Placeholder" class="rounded-xl shadow-xl w-full h-auto">
+                </div>
+            </div>
+
+            <!-- Step 4: Continuous Improvement -->
+            <div class="flex flex-col md:flex-row-reverse items-center md:space-x-reverse md:space-x-12">
+                <div class="md:w-1/2 text-center md:text-right mb-8 md:mb-0">
+                    <div class="text-6xl text-orange-500 mb-4"><i class="fas fa-chart-pie"></i></div>
+                    <h3 class="text-3xl font-bold text-gray-800 mb-3">4. Continuous Improvement</h3>
+                    <p class="text-gray-600 text-lg">Patients continue practicing with updated exercises, track their growth, and work collaboratively with their therapist.</p>
+                </div>
+                <div class="md:w-1/2">
+                    <img src="report.png" alt="Progress Report Placeholder" class="rounded-xl shadow-xl w-full h-auto">
                 </div>
             </div>
         </div>
+    </section>
 
-        <!-- Patient Details View (for doctors) -->
-        <div id="patientDetailsView" class="hidden">
-            <button id="backToPatientListBtn" class="mb-4 bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg">&larr; Back to Patient List</button>
-            <h2 id="patientDetailsName" class="text-2xl font-bold text-gray-800 mb-4"></h2>
+    <!-- For Patients & Doctors Section -->
+    <section id="for-users" class="py-20 md:py-32 px-4 bg-gray-50">
+        <h2 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-16">Tailored for You: Patients & Doctors</h2>
+        <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12">
+            <div class="bg-white p-8 rounded-2xl shadow-lg border border-blue-100">
+                <div class="text-5xl mb-6 text-blue-600"><i class="fas fa-user-injured"></i></div>
+                <h3 class="text-2xl font-semibold text-gray-800 mb-4">For Patients</h3>
+                <ul class="list-disc list-inside text-lg text-gray-700 space-y-3">
+                    <li><strong>Engaging Practice:</strong> Interactive exercises make speech therapy fun and effective.</li>
+                    <li><strong>Immediate Feedback:</strong> Know instantly how you're doing and where to improve.</li>
+                    <li><strong>Track Your Progress:</strong> See your improvements over time with clear visual charts.</li>
+                    <li><strong>Connect with Your Therapist:</strong> Receive assignments and personalized feedback directly.</li>
+                    <li><strong>Practice Anywhere:</strong> Accessible from any browser, on any device.</li>
+                </ul>
+            </div>
+            <div class="bg-white p-8 rounded-2xl shadow-lg border border-indigo-100">
+                <div class="text-5xl mb-6 text-indigo-600"><i class="fas fa-stethoscope"></i></div>
+                <h3 class="text-2xl font-semibold text-gray-800 mb-4">For Doctors</h3>
+                <ul class="list-disc list-inside text-lg text-gray-700 space-y-3">
+                    <li><strong>Efficient Patient Management:</strong> Easily view patient progress and assign exercises.</li>
+                    <li><strong>Data-Driven Insights:</strong> Access detailed charts on patient accuracy and challenging words.</li>
+                    <li><strong>Personalized Care:</strong> Provide targeted feedback and customize scoring rubrics for individual needs.</li>
+                    <li><strong>Secure Reporting:</strong> Download comprehensive reports for your records.</li>
+                    <li><strong>Streamlined Workflow:</strong> Reduce administrative burden and focus more on therapy.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
 
-            <div class="grid lg:grid-cols-2 gap-6">
-                <!-- Left Column: Assessment & Progress & Admin Tools -->
-                <div class="space-y-6">
+    <!-- Testimonials Section -->
+    <section id="testimonials" class="py-20 md:py-32 px-4 bg-blue-50">
+        <h2 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-16">What Our Users Say</h2>
+        <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
+                <p class="text-gray-700 text-lg italic mb-6">"TalkToText has transformed my son's speech therapy. The instant feedback keeps him motivated, and I can see his progress clearly!"</p>
+                <div class="flex items-center">
+                    <img src="https://placehold.co/60x60/a78bfa/ffffff?text=AV" alt="Avatar" class="w-16 h-16 rounded-full mr-4 shadow-md">
                     <div>
-                        <h3 class="text-lg font-semibold mb-2">Assessment Tools</h3>
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h4 class="font-bold">Latest Practice Session</h4>
-                            <p id="doctorLatestSessionSentence" class="text-sm text-gray-500">Sentence: Loading...</p>
-                            <p id="doctorLatestSessionScore" class="text-sm text-gray-500">Score: Loading...</p>
-                            <audio id="doctorLatestSessionAudio" controls class="w-full mt-2"></audio>
-                            <!-- Feedback input for doctor -->
-                            <h4 class="font-semibold text-gray-700 mt-4 mb-2">Send Feedback:</h4>
-                            <textarea id="doctorFeedbackTextarea" placeholder="Write your feedback here..." class="w-full p-2 border rounded-lg min-h-[100px]"></textarea>
-                            <button id="sendFeedbackBtn" class="mt-2 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg">Send Feedback</button>
-                        </div>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-semibold mb-2">Progress Tracking</h3>
-                        <div class="bg-gray-50 p-4 rounded-lg h-80">
-                            <canvas id="doctorPatientChart" class="w-full h-full"></canvas>
-                        </div>
-                    </div>
-                    <!-- NEW: Most Challenging Words Chart -->
-                    <div class="bg-gray-50 p-4 rounded-lg mb-6">
-                        <h3 class="font-semibold mb-2">Most Challenging Words</h3>
-                        <canvas id="doctorWordAccuracyChart" class="w-full h-full"></canvas>
-                    </div>
-                    <!-- Moved Admin Tools here -->
-                    <div>
-                        <h3 class="text-lg font-semibold mb-2">Admin Tools</h3>
-                        <div class="bg-gray-50 p-4 rounded-lg space-y-2">
-                            <button id="exportReportBtn" class="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 px-3 rounded-lg">Export Report (PDF)</button>
-                            <div id="exportReportMessage" class="mt-1 text-sm font-medium hidden"></div>
-                            <button id="customizeRubricBtn" class="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 px-3 rounded-lg">Customize Scoring Rubric</button>
-                            <div id="customizeRubricMessage" class="mt-1 text-sm font-medium hidden"></div>
-                        </div>
+                        <p class="font-semibold text-gray-800 text-xl">Sarah L.</p>
+                        <p class="text-gray-600 text-md">Parent of a Patient</p>
                     </div>
                 </div>
-                <!-- Right Column: Patient Feedback History & Session Management -->
-                <div class="space-y-6">
+            </div>
+            <div class="bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
+                <p class="text-gray-700 text-lg italic mb-6">"As a speech therapist, this platform is invaluable. I can easily track patient performance and tailor assignments, saving me so much time."</p>
+                <div class="flex items-center">
+                    <img src="https://placehold.co/60x60/3b82f6/ffffff?text=DR" alt="Avatar" class="w-16 h-16 rounded-full mr-4 shadow-md">
                     <div>
-                        <h3 class="text-lg font-semibold mb-2">Patient Feedback History</h3>
-                        <div id="doctorPatientFeedbackHistory" class="bg-gray-50 p-4 rounded-lg space-y-3 min-h-[150px]">
-                            <!-- Patient feedback history will be loaded here -->
-                        </div>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-semibold mb-2">Session Management</h3>
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h4 class="font-bold">Assigned Exercises History</h4>
-                            <div id="doctorAssignedExercisesHistory" class="list-disc list-inside space-y-1 mb-4">
-                                <!-- Doctor's view of assigned exercises history will be loaded here -->
-                            </div>
-                            <h4 class="font-bold">Assign New Exercise</h4>
-                            <select id="assignExerciseSelect" class="w-full p-2 border rounded-lg mt-2">
-                                <option value="R-sound practice">R-sound practice</option>
-                                <option value="S-sound practice">S-sound practice</option>
-                                <option value="Fluency reading">Fluency reading</option>
-                            </select>
-                            <button id="assignExerciseBtn" class="mt-2 bg-green-500 hover:bg-green-600 text-white py-1 px-3 rounded-lg">Assign</button>
-                            <div id="assignmentMessage" class="mt-2 text-sm font-medium hidden"></div>
-                        </div>
+                        <p class="font-semibold text-gray-800 text-xl">Dr. Emily R.</p>
+                        <p class="text-gray-600 text-md">Speech-Language Pathologist</p>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <!-- Rubric Customization Modal -->
-    <div id="customizeRubricModal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">Customize Scoring Rubric</h2>
-            <div class="space-y-4">
-                <div>
-                    <label for="mispronunciationWeight" class="block text-sm font-medium text-gray-700">Mispronunciation Weight (%):</label>
-                    <input type="range" id="mispronunciationWeight" min="0" max="100" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                    <span id="mispronunciationWeightValue" class="text-sm text-gray-600">50%</span>
-                </div>
-                <div>
-                    <label for="omissionWeight" class="block text-sm font-medium text-gray-700">Omission Weight (%):</label>
-                    <input type="range" id="omissionWeight" min="0" max="100" value="70" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                    <span id="omissionWeightValue" class="text-sm text-gray-600">70%</span>
-                </div>
-                <div>
-                    <label for="insertionWeight" class="block text-sm font-medium text-gray-700">Insertion Weight (%):</label>
-                    <input type="range" id="insertionWeight" min="0" max="100" value="30" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                    <span id="insertionWeightValue" class="text-sm text-gray-600">30%</span>
-                </div>
-                <div>
-                    <label for="clarityThreshold" class="block text-sm font-medium text-gray-700">Clarity Threshold (% Confidence):</label>
-                    <input type="range" id="clarityThreshold" min="0" max="100" value="75" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                    <span id="clarityThresholdValue" class="text-sm text-gray-600">75%</span>
-                </div>
-            </div>
-            <div class="flex justify-end space-x-3 mt-6">
-                <button id="cancelRubricBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg">Cancel</button>
-                <button id="saveRubricBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg">Save Rubric</button>
-            </div>
-            <div id="rubricMessage" class="mt-4 text-sm font-medium hidden"></div>
+    <!-- Contact / CTA -->
+    <section id="contact" class="py-20 md:py-32 px-4 text-center bg-blue-50">
+        <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-8">Ready to Unlock Your Voice?</h2>
+        <p class="text-lg md:text-xl text-gray-700 mb-12 max-w-3xl mx-auto">
+            Embark on your speech journey today with guided feedback, expert tools, and a supportive platform designed for your ultimate progress and confidence.
+        </p>
+        <!-- Login to Begin Button - Now a direct link to app.html -->
+        <a href="app.html?showLogin=true" class="bg-blue-600 hover:bg-blue-700 text-white px-12 py-4 rounded-xl shadow-xl transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 text-xl font-bold">Login to Begin</a>
+    </section>
+
+    <!-- Footer -->
+    <footer class="text-center py-10 bg-gray-900 text-gray-300">
+        <p class="mb-4 text-base">&copy; 2025 TalkToText Team | UIET, Panjab University</p>
+        <p class="mb-6 text-base">
+            <a href="mailto:contact@talk2text.ai" class="text-blue-400 hover:underline transition-colors duration-300 mr-4">contact@talk2text.ai</a>
+            <a href="#" class="text-blue-400 hover:underline transition-colors duration-300 mr-4">Privacy Policy</a>
+            <a href="https://github.com/KashviSharma15/talk_2_text" target="_blank" class="text-blue-400 hover:underline transition-colors duration-300">GitHub</a>
+        </p>
+        <div class="flex justify-center space-x-8">
+            <a href="#" class="text-gray-400 hover:text-blue-400 transition-colors duration-300 transform hover:scale-110"><i class="fab fa-facebook-f text-2xl"></i></a>
+            <a href="#" class="text-gray-400 hover:text-blue-400 transition-colors duration-300 transform hover:scale-110"><i class="fab fa-twitter text-2xl"></i></a>
+            <a href="#" class="text-gray-400 hover:text-blue-400 transition-colors duration-300 transform hover:scale-110"><i class="fab fa-linkedin-in text-2xl"></i></a>
+            <a href="#" class="text-gray-400 hover:text-blue-400 transition-colors duration-300 transform hover:scale-110"><i class="fab fa-instagram text-2xl"></i></a>
         </div>
-    </div>
+    </footer>
 
-    <!-- Login Modal (Initially visible as the landing page) -->
-<div id="loginModal" class="modal-overlay">
-  <div class="modal-content text-center" style="background-color: #f8f0e3; padding: 2rem; border-radius: 0.75rem;">
-    <h2 class="text-2xl font-bold text-gray-800 mb-4">Login</h2>
-    <div class="space-y-4">
-      <div>
-        <label for="loginRoleSelect" class="block text-left text-gray-700 font-semibold mb-1">I am a:</label>
-        <select id="loginRoleSelect" class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-          <option value="patient">Patient</option>
-          <option value="doctor">Doctor</option>
-        </select>
-      </div>
-      <div>
-        <label for="loginEmail" class="block text-left text-gray-700 font-semibold mb-1">Email:</label>
-        <input type="email" id="loginEmail" placeholder="Eg: abc123@gmail.com" 
-               class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-      </div>
-      <div>
-        <label for="loginPassword" class="block text-left text-gray-700 font-semibold mb-1">Password:</label>
-        <input type="password" id="loginPassword"
-               class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-      </div>
-      <button id="loginSubmitBtn" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 px-5 rounded-lg transition duration-300 ease-in-out">
-        Login
-      </button>
-    </div>
-    <p class="text-sm text-gray-600 mt-4">
-      Don't have an account? <a href="#" id="showRegisterFromLogin" class="text-blue-600 hover:underline">Register</a>
-    </p>
-    <p id="loginMessage" class="text-red-500 text-sm mt-2 hidden"></p>
-  </div>
-</div>
+    <!-- Scroll to Top Button -->
+    <button id="scrollToTopBtn" title="Go to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
 
-<!-- Register Modal -->
-<div id="registerModal" class="modal-overlay hidden">
-  <div class="modal-content text-center" style="background-color: #f8f0e3; padding: 2rem; border-radius: 0.75rem;">
-    <h2 class="text-2xl font-bold text-gray-800 mb-4">Register</h2>
-    <div class="space-y-4">
-      
-      <!-- Full Name -->
-      <div>
-        <label for="registerFullName" class="block text-left text-gray-700 font-semibold mb-1">Full Name:</label>
-        <input type="text" id="registerFullName"
-               class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-      </div>
-
-      <!-- Email -->
-      <div>
-        <label for="registerEmail" class="block text-left text-gray-700 font-semibold mb-1">Email:</label>
-        <input type="email" id="registerEmail" placeholder="Eg: abc123@gmail.com"
-               class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-      </div>
-
-      <!-- Password -->
-      <div>
-        <label for="registerPassword" class="block text-left text-gray-700 font-semibold mb-1">Password:</label>
-        <input type="password" id="registerPassword"
-               class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-        <p class="text-xs text-gray-500 text-left mt-1">Use strong passwords</p>
-      </div>
-
-      <!-- Role Selection (Radio Buttons) -->
-      <div>
-        <label class="block text-left text-gray-700 font-semibold mb-1">Register as:</label>
-        <div class="flex justify-center gap-4">
-          <label><input type="radio" name="roleSelect" value="patient" checked> Patient</label>
-          <label><input type="radio" name="roleSelect" value="doctor"> Doctor</label>
-        </div>
-      </div>
-
-      <!-- Patient Fields -->
-      <div id="patientFields" class="space-y-4">
-        <div>
-          <label for="registerAge" class="block text-left text-gray-700 font-semibold mb-1">Age:</label>
-          <input type="number" id="registerAge" placeholder="e.g., 10"
-                 class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-        </div>
-        <div>
-          <label class="block text-left text-gray-700 font-semibold mb-1">Gender:</label>
-          <div class="flex justify-center gap-4">
-            <label><input type="radio" name="genderSelect" value="male"> Male</label>
-            <label><input type="radio" name="genderSelect" value="female"> Female</label>
-            <label><input type="radio" name="genderSelect" value="other"> Other</label>
-          </div>
-        </div>
-      </div>
-
-      <!-- Doctor Fields (Hidden initially) -->
-      <div id="doctorFields" class="space-y-4 hidden">
-        <div>
-          <label for="registerSpecialty" class="block text-left text-gray-700 font-semibold mb-1">Specialty:</label>
-          <input type="text" id="registerSpecialty" placeholder="e.g., Pediatric Speech Therapist"
-                 class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-        </div>
-      </div>
-
-      <!-- Submit Button -->
-      <button id="registerSubmitBtn" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 px-5 rounded-lg transition duration-300 ease-in-out">
-        Register
-      </button>
-    </div>
-
-    <p class="text-sm text-gray-600 mt-4">
-      Already have an account? <a href="#" id="showLoginFromRegister" class="text-blue-600 hover:underline">Login</a>
-    </p>
-    <p id="registerMessage" class="text-red-500 text-sm mt-2 hidden"></p>
-  </div>
-</div>
-
-<!-- Main JavaScript -->
-<script type="module" src="./src/main.js"></script>
-</body>
-</html>
-
-    <!-- Main JavaScript module -->
-    <script type="module" src="./src/main.js"></script>
+    <script type="module" src="./src/home.js"></script>
 </body>
 </html>

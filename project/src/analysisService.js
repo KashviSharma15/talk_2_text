@@ -23,13 +23,21 @@ const DEFAULT_RUBRIC_SETTINGS = {
  * @param {string} targetSentence - The sentence the user was supposed to say.
  * @returns {Promise<Object>} An analysis object including overall score and word-level details.
  */
-export async function getPronunciationAnalysis(audioData, targetSentence) {
-    console.log("Starting in-browser ASR transcription...");
-    console.log("Target Text:", targetSentence);
+export async function getPronunciationAnalysis(audioData, targetSentence, doctorId = null, patientId = null) {
+    let rubricSettings = { ...DEFAULT_RUBRIC_SETTINGS };
 
-    const userId = getUserId();
-    const customRubric = userId ? await getRubricSettings(userId) : null;
-    const rubricSettings = { ...DEFAULT_RUBRIC_SETTINGS, ...customRubric };
+    if (doctorId && patientId) {
+        const fetched = await getRubricSettings(doctorId, patientId);
+        if (fetched) {
+            rubricSettings = { ...rubricSettings, ...fetched };
+            console.log("Using doctor's custom rubric:", rubricSettings);
+        } else {
+            console.warn("No rubric found for doctor:", doctorId);
+        }
+    } else {
+        console.warn("No doctor ID provided — using default rubric.");
+    }
+
     console.log("Using rubric settings:", rubricSettings);
 
     try {
@@ -39,17 +47,16 @@ export async function getPronunciationAnalysis(audioData, targetSentence) {
 
         const targetWordsArray = targetSentence.toLowerCase().split(/\s+/).filter(word => word.length > 0);
 
-        // Compare words and get detailed results
         const wordDetails = compareWords(targetWordsArray, transcribedWords, rubricSettings.mispronunciationThreshold);
-        console.log("Pronunciation Analysis Result:", { overallScore: 0, words: wordDetails }); // Log before score calculation
 
-        // Calculate overall score based on word details and rubric settings
         const overallScore = calculateOverallScore(wordDetails, rubricSettings);
 
+        console.log("Pronunciation Analysis Result:", { overallScore, words: wordDetails });
+
         return {
-            overallScore: overallScore,
+            overallScore,
             words: wordDetails,
-            transcribedText: transcribedText // Include transcribed text for reference
+            transcribedText
         };
 
     } catch (error) {
@@ -57,6 +64,7 @@ export async function getPronunciationAnalysis(audioData, targetSentence) {
         throw error;
     }
 }
+
 
 /**
  * Compares target words with transcribed words to identify correct, omitted,

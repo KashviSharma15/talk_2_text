@@ -21,6 +21,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log("Initializing DOM...");
     initializeDOMElements();
 
+    const params = new URLSearchParams(window.location.search);
+    const autoLogin = params.get('showLogin');
+
     attachAuthEventListeners();
     setupRoleToggle(); // ✅ NEW: Enable patient/doctor registration field toggle
 
