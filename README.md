@@ -2,7 +2,7 @@
   <img src="https://github.com/user-attachments/assets/9697997e-72e9-48ec-8ccc-c3c564356464" alt="TalkToText Logo" height="150" width="150"/>
 </p>
 
-# 🗣️ Text2Talk — Empowering Better Speech Through Technology
+# 🗣️ Talk2Text — Empowering Better Speech Through Technology
 
 A comprehensive web platform enabling accessible speech therapy using AI-driven pronunciation analysis, real-time feedback, and therapist-patient collaboration. Built for the **AI Summer od Code 2025**, the app is designed to support individuals with speech impairments by providing structured practice and progress tracking.
 
