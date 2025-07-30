@@ -29,7 +29,7 @@ Children and individuals with speech disorders often lack consistent access to p
 | Name               | Email                              |
 |--------------------|------------------------------------|
 | Niharika           | niharika10092005@gmail.com         |
-| Avantika Panday    | er.avantikapandey@gmail.com        |
+| Avantika Pandey    | er.avantikapandey@gmail.com        |
 | Gayatri Mehta      | gayatri.mehta.au@gmail.com         |
 | Kashvi Sharma      | kashvi.sharma5944@gmail.com        |
 | Komalpreet Kaur    | komalindus987@gmail.com            |
