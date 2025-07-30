@@ -205,10 +205,4 @@ Feel free to fork this repository, open issues, and submit PRs. For major contri
 
 ---
 
-## 📜 License
-
-MIT License
-
----
-
 > _“When you change the way you speak, you can change how the world hears you.”_
