@@ -1,40 +1,29 @@
-// src/constants.js
-
 /**
  * @fileoverview Defines global constants used throughout the application.
+ * Uses a local config.js (ignored in Git) to protect sensitive Firebase keys.
  */
 
-/**
- * Configuration for Firebase.
- * IMPORTANT: This now correctly checks for the global __firebase_config
- * provided by the Canvas environment. If running outside Canvas, you'll need
- * to manually provide valid Firebase credentials here.
- * @type {object}
- */
-export const FIREBASE_CONFIG = typeof __firebase_config !== 'undefined' ?
-    JSON.parse(__firebase_config) :
-    {
-        apiKey: "AIzaSyDwjxv_G5v5fcssb_Hkegt09RzCuuukrOo", // REPLACE THIS WITH YOUR ACTUAL API KEY IF NOT IN CANVAS
-        authDomain: "speechtherapyapp-f524f.firebaseapp.com",
-        projectId: "speechtherapyapp-f524f",
-        storageBucket: "speechtherapyapp-f524f.firebasestorage.app",
-        messagingSenderId: "61000903231",
-        appId: "1:61000903231:web:eac4f8841f89db73e4268a"
-    };
+import { FIREBASE_CONFIG as LOCAL_FIREBASE_CONFIG, APP_ID as LOCAL_APP_ID } from './config.js';
 
 /**
- * The unique application ID provided by the Canvas environment.
- * @type {string}
+ * Firebase Configuration
+ * (Imported from config.js which is ignored in Git)
  */
-export const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'speech-therapy-app';
+export const FIREBASE_CONFIG = LOCAL_FIREBASE_CONFIG;
 
 /**
- * The initial custom authentication token provided by the Canvas environment.
- * @type {string|undefined}
+ * Application ID (used for artifacts pathing and namespacing)
+ */
+export const APP_ID = LOCAL_APP_ID;
+
+/**
+ * Initial custom authentication token (if any)
  */
 export const INITIAL_AUTH_TOKEN = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-// Default sentences for the patient to practice if no specific exercises are assigned
+/**
+ * Default sentences for patients to practice if no specific exercises are assigned.
+ */
 export const SENTENCES_TO_PRACTICE = [
     "The quick brown fox jumps over the lazy dog.",
     "She sells seashells by the seashore.",
@@ -43,7 +32,9 @@ export const SENTENCES_TO_PRACTICE = [
     "Betty Botter bought some butter but she said the butter's bitter."
 ];
 
-// Define specific sentences for each exercise type
+/**
+ * Predefined sentences mapped to specific exercise types.
+ */
 export const EXERCISE_SENTENCES = {
     "R-sound practice": [
         "Rahul runs really fast.",
