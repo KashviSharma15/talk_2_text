@@ -16,7 +16,7 @@ Children and individuals with speech disorders often lack consistent access to p
 
 ## 🎯 Our Solution
 
-**Text2Talk** enables:
+**Talk2Text** enables:
 - 🧑‍⚕️ **Speech Therapists** to assign custom exercises, define scoring rubrics per patient, and deliver direct feedback.
 - 🧒 **Patients** to practice assigned sentences, get instant analysis, track progress, and improve over time.
 
@@ -24,7 +24,7 @@ Children and individuals with speech disorders often lack consistent access to p
 
 ## 👥 Team Details
 
-**Team Name**: `text2talk`
+**Team Name**: `talk2text`
 
 | Name               | Email                              |
 |--------------------|------------------------------------|
@@ -89,93 +89,77 @@ project/
 
 ---
 
-## 🔐 Firebase Firestore Rules (Per Role Access)
+## 🔧 Local Development Setup
 
-```js
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-
-    match /users/{userId} {
-      allow read: if request.auth != null;
-      allow create, update: if request.auth != null && request.auth.uid == userId;
-    }
-
-    match /artifacts/{appId}/doctors/{doctorId}/patients/{patientId}/rubricSettings/{docId} {
-      allow read, write: if request.auth != null && request.auth.uid == doctorId;
-    }
-
-    match /artifacts/{appId}/users/{userId}/{subCollection}/{docId} {
-      allow read, create, update: if request.auth != null && request.auth.uid == userId;
-
-      allow read: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "doctor";
-
-      allow create: if request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "doctor" &&
-        (subCollection == "patientFeedback" || subCollection == "assignedExercises");
-
-      allow create, update: if request.auth != null &&
-        request.auth.uid == userId &&
-        subCollection == "rubricSettings";
-    }
-  }
-}
+### 1️⃣ Clone the Repository
+```bash
+git clone <your-repo-url>
+cd talktotext
 ```
+
+### 2️⃣ Install Dependencies (Optional: For local ASR testing)
+If you plan to test offline ASR features:
+```bash
+pip install -r requirements.txt
+```
+
+For web frontend only, no Python setup is required.
 
 ---
 
-## 🚀 Deployment Guide (Firebase Hosting)
+## 🔐 Firebase Setup (Minimal)
+1. Go to [Firebase Console](https://console.firebase.google.com/) and create a project.
+2. Enable:
+   - **Firestore Database**
+   - **Authentication (Email/Password)**
+3. Copy your Firebase config keys and add them to `src/config.js`:
+   ```javascript
+   // src/config.js
+   export const FIREBASE_CONFIG = {
+     apiKey: "your-api-key",
+     authDomain: "your-project.firebaseapp.com",
+     projectId: "your-project-id",
+     storageBucket: "your-project.appspot.com",
+     messagingSenderId: "your-sender-id",
+     appId: "your-app-id"
+   };
+   ```
+4. Add this file to `.gitignore`:
+   ```
+   # Ignore Firebase config with API keys
+   src/config.js
+   ```
 
-### ✅ Prerequisites
+5. For detailed Firebase role-based rules, see `firebase.rules` in the repo.
 
-- [Node.js](https://nodejs.org/)
-- Firebase CLI: `npm install -g firebase-tools`
-- Firebase project (e.g., `speechtherapyapp-f524f`)
+---
 
-### 🔌 Firebase Initialization
+## ▶️ Running Locally
+1. Clone the repo:
+   ```bash
+   git clone <your-repo-url>
+   cd <your-repo>
+   ```
+2. Add Firebase config in `src/config.js`.
+3. Run locally:
+   - Option 1: Open `index.html` in your browser
+   - Option 2: Use a simple local server:
+     ```bash
+     python -m http.server 8000
+     ```
+     Then open `http://localhost:8000`
 
+---
+
+## 🔥 Deploy (Firebase Hosting)
+
+For hosting, ensure Firebase CLI is installed:
 ```bash
+npm install -g firebase-tools
 firebase login
 firebase init
-```
-
-Choose:
-- ✅ Hosting: Configure files for Firebase Hosting
-- Set `public` directory as: `.`
-- Choose `index.html` as default
-- Decline SPA rewrite unless needed
-
-### 🔁 Set Firebase Project
-
-```bash
-firebase use --add
-# Select your Firebase project (e.g., speechtherapyapp-f524f)
-```
-
-### 🚀 Deploy
-
-```bash
 firebase deploy
-```
 
----
-
-## 🔧 Example `firebase.json`
-
-```json
-{
-  "hosting": {
-    "public": ".",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ]
-  }
-}
 ```
 
 ---

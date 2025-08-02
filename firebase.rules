@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /artifacts/{appId}/doctors/{doctorId}/patients/{patientId}/rubricSettings/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == doctorId;
+    }
+
+    match /artifacts/{appId}/users/{userId}/{subCollection}/{docId} {
+      allow read, create, update: if request.auth != null && request.auth.uid == userId;
+
+      allow read: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "doctor";
+
+      allow create: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "doctor" &&
+        (subCollection == "patientFeedback" || subCollection == "assignedExercises");
+
+      allow create, update: if request.auth != null &&
+        request.auth.uid == userId &&
+        subCollection == "rubricSettings";
+    }
+  }
+}
