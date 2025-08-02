@@ -89,24 +89,6 @@ project/
 
 ---
 
-## 🔧 Local Development Setup
-
-### 1️⃣ Clone the Repository
-```bash
-git clone <your-repo-url>
-cd talktotext
-```
-
-### 2️⃣ Install Dependencies (Optional: For local ASR testing)
-If you plan to test offline ASR features:
-```bash
-pip install -r requirements.txt
-```
-
-For web frontend only, no Python setup is required.
-
----
-
 ## 🔐 Firebase Setup (Minimal)
 1. Go to [Firebase Console](https://console.firebase.google.com/) and create a project.
 2. Enable:
@@ -140,9 +122,15 @@ For web frontend only, no Python setup is required.
    git clone <your-repo-url>
    cd <your-repo>
    ```
-2. Add Firebase config in `src/config.js`.
-3. Run locally:
-   - Option 1: Open `index.html` in your browser
+2. Install Dependencies (Optional: For local ASR testing)
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+For web frontend only, no Python setup is required.
+3. Add Firebase config in `src/config.js`.
+4. Run locally:
+   - Option 1: Open `index.html` in your browser for local UI testing.
    - Option 2: Use a simple local server:
      ```bash
      python -m http.server 8000
