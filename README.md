@@ -126,8 +126,6 @@ project/
     ```bash
     pip install -r requirements.txt
     ```
-
-For web frontend only, no Python setup is required.
 3. Add Firebase config in `src/config.js`.
 4. Run locally:
    - Option 1: Open `index.html` in your browser for local UI testing.
