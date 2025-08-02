@@ -34,3 +34,5 @@ Thumbs.db
 
 # Ignore env files if you use them
 .env
+
+project/src/config.js
